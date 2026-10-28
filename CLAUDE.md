@@ -48,6 +48,11 @@ so never commit them. They're the best input for parser bugs: read
   same-host http URLs/redirects to https. Keep that.
 - **Stat bars:** XP % comes from the expbar module's bar (`td width='NN%'`, blue =
   ready to fight your master). Read it from the HTML, don't recompute the XP formula.
+- **In-text links are navs too.** Shops (weapons.php, armor.php) and lists put plain
+  `<a href>` links in the main text, not `a.nav`. The renderer appends them to
+  `page.navs` with `inline=True` and prints `[#n]` before them. They're reachable
+  only by `#n`, never by hotkey or the single-key label-prefix fallback, so a stray
+  keypress can't buy something. Links with `target` (popups) or a URL scheme are skipped.
 - bs4 returns `accesskey` as a list.
 - Single-key input: a non-hotkey key on a page with a form starts filling form 1
   (prefilled via readline). `:` and `#` start typed commands.

@@ -20,6 +20,7 @@ class Nav:
     key: str  # hotkey letter, may be ""
     label: str
     href: str
+    inline: bool = False  # a link in the page text (shop items etc.), numbered there
 
 
 @dataclass
@@ -60,10 +61,21 @@ def _ws(s):
     return re.sub(r"\s+", " ", s)
 
 
+def _is_game_link(a):
+    """Plain in-text links the game offers (shop items, warrior bios), not popups
+    or external sites. LoTGD registers these as allowed navs, so following them is
+    the same as clicking them in a browser."""
+    href = (a.get("href") or "").strip()
+    if not href or a.get("target") or "nav" in (a.get("class") or []):
+        return False
+    return not re.match(r"(#|[a-z][a-z0-9+.-]*:|//)", href, re.I)
+
+
 class _Renderer:
-    def __init__(self):
+    def __init__(self, navs=None):
         self.text = Text()
         self.form_no = 0
+        self.navs = navs  # in-text links get appended here and numbered #n
 
     def newline(self):
         if self.text.plain and not self.text.plain.endswith("\n"):
@@ -118,6 +130,11 @@ class _Renderer:
             return
         if name == "img":
             return
+        if name == "a" and self.navs is not None and _is_game_link(el):
+            label = _clean(el.get_text())
+            if label:
+                self.navs.append(Nav("", "", label, el["href"].strip(), inline=True))
+                self.text.append(f"[#{len(self.navs)}] ", style="bright_cyan")
         if name == "div" and self.bar(el, st):
             return
         if name == "form":
@@ -156,8 +173,8 @@ class _Renderer:
             self.newline()
 
 
-def render_text(el):
-    r = _Renderer()
+def render_text(el, navs=None):
+    r = _Renderer(navs)
     r.render(el)
     t = r.text
     # squeeze runs of blank lines
@@ -323,11 +340,13 @@ def parse(html, url=""):
 
     bars = {}
     stats = parse_stats(side_cell, bars)
+    navs = parse_navs(soup)
+    body = render_text(main, navs)  # appends in-text links to navs
     return Page(
         url=url,
         title=title,
-        body=render_text(main),
-        navs=parse_navs(soup),
+        body=body,
+        navs=navs,
         forms=parse_forms(main),
         stats=stats,
         html=html,

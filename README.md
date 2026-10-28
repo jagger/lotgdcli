@@ -86,7 +86,7 @@ Start with `:` or `#` to type a longer command, then press Enter:
 
 | Command       | Action                                                     |
 |---------------|------------------------------------------------------------|
-| `#3`          | Follow menu entry number 3 (for entries without a hotkey)  |
+| `#3`          | Follow entry number 3: a menu entry without a hotkey, or a link in the page text |
 | `:f` / `:f2`  | Fill in and submit form 1 / form 2 (or just start typing for form 1) |
 | `:r`          | Reload the current page                                    |
 | `:motd`       | Show the message of the day                                |
@@ -100,6 +100,12 @@ and any key that isn't a menu hotkey goes into the box. For example, at the bank
 press `D` for Deposit, then type `500` and press Enter. Pages with several forms
 or fields walk you through each one, and `:f2` picks form 2. Press Enter on an
 empty box to keep its default.
+
+**Shops and other in-text links:** some pages put links in the text instead of
+the menu, like the items at MightyE's Weapons or Pegasus Armor. These show up
+numbered, as in `[#4] Well Crafted Bronze Sword`. Type `#4` and press Enter to
+buy it. Items you can't afford aren't links on the website either, so they
+don't get a number.
 
 **Logging out:** as on the website, use the in-game quit option (for example
 "Quit to the fields") before `:q`, so your character is safely logged out.

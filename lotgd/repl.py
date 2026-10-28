@@ -15,7 +15,7 @@ from rich.text import Text
 
 HELP = """\
   <key>      follow the nav with that hotkey (no Enter needed)
-  #<n>       follow nav number n (for navs without a hotkey)
+  #<n>       follow nav or in-text link number n (e.g. shop items)
   :f[<n>]    fill and submit form n (default 1)
   :r         reload the current page
   :motd      show the message of the day
@@ -81,6 +81,8 @@ class Repl:
         lines = []  # (Text, is_header)
         section = None
         for i, nav in enumerate(page.navs, 1):
+            if nav.inline:  # already numbered in the page text
+                continue
             if nav.section != section:
                 section = nav.section
                 if section:
@@ -134,8 +136,9 @@ class Repl:
             for nav in page.navs:
                 if nav.key and nav.key.lower() == cmd.lower():
                     return self.c.get(nav.href)
-        # fall back to a unique label prefix match
-        hits = [n for n in page.navs if n.label.lower().startswith(cmd.lower())]
+        # fall back to a unique label prefix match (menu navs only: a stray key
+        # shouldn't buy the shop item whose name happens to start with it)
+        hits = [n for n in page.navs if not n.inline and n.label.lower().startswith(cmd.lower())]
         if len(hits) == 1:
             return self.c.get(hits[0].href)
         if len(cmd) == 1 and cmd.isprintable() and page.forms:
