@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lotgdcli"
+version = "0.1.0"
+description = "Terminal client for Legend of the Green Dragon web servers"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["requests", "beautifulsoup4", "html5lib", "rich"]
+
+[project.scripts]
+lotgd = "lotgd.__main__:main"
+
+[tool.setuptools]
+packages = ["lotgd"]
