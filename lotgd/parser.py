@@ -314,6 +314,34 @@ def parse_stats(cell, bars=None):
     return stats
 
 
+def _num(s):
+    m = re.search(r"\d[\d,]*", s or "")
+    return int(m[0].replace(",", "")) if m else None
+
+
+def annotate_shop(main, stats, soup):
+    """Weapon/armor shops grey out items costing more than gold on hand plus the
+    trade-in for your current gear. Note how much more gold each one needs."""
+    gold = next((_num(v) for l, v in stats if l.lower() == "gold"), None)
+    # weapons: "I'll give you 2093 trade-in value"; armor: "she'll give you 120 for them"
+    m = re.search(r"give you\s+([\d,]+)", main.get_text(" "))
+    if gold is None or not m:
+        return
+    budget = gold + _num(m[1])
+    for head in main.select("tr.trhead"):
+        cells = head.find_all("td", recursive=False)
+        if not cells or _clean(cells[-1].get_text()).lower() != "cost":
+            continue
+        for tr in head.find_next_siblings("tr"):
+            tds = tr.find_all("td", recursive=False)
+            cost = _num(tds[-1].get_text()) if len(tds) == len(cells) else None
+            if cost is None or cost <= budget:
+                continue
+            note = soup.new_tag("span", attrs={"class": "colLtRed"})
+            note.string = f" (need {cost - budget:,} more)"
+            tds[-1].append(note)
+
+
 def parse(html, url=""):
     # LoTGD keeps color <span>s open across raw table output (e.g. fight health
     # bars), so the HTML is misnested. html5lib recovers the way browsers do;
@@ -340,6 +368,7 @@ def parse(html, url=""):
 
     bars = {}
     stats = parse_stats(side_cell, bars)
+    annotate_shop(main, stats, soup)
     navs = parse_navs(soup)
     body = render_text(main, navs)  # appends in-text links to navs
     return Page(

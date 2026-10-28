@@ -105,7 +105,9 @@ empty box to keep its default.
 the menu, like the items at MightyE's Weapons or Pegasus Armor. These show up
 numbered, as in `[#4] Well Crafted Bronze Sword`. Type `#4` and press Enter to
 buy it. Items you can't afford aren't links on the website either, so they
-don't get a number.
+don't get a number. Instead they show how much more gold you need, counting
+the gold you're carrying plus the trade-in for your current weapon or armor,
+as in `Golden Hilted Sword  12  6840 (need 814 more)`.
 
 **Logging out:** as on the website, use the in-game quit option (for example
 "Quit to the fields") before `:q`, so your character is safely logged out.

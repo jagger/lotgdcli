@@ -53,6 +53,10 @@ so never commit them. They're the best input for parser bugs: read
   `page.navs` with `inline=True` and prints `[#n]` before them. They're reachable
   only by `#n`, never by hotkey or the single-key label-prefix fallback, so a stray
   keypress can't buy something. Links with `target` (popups) or a URL scheme are skipped.
+- **Shop shortfall notes:** `annotate_shop` uses the server's rule for whether you
+  can buy (cost <= on-hand Gold stat + trade-in). The trade-in comes from "give you N"
+  in the text (weapons: "I'll give you N trade-in value", armor: "she'll give you N
+  for them"), and the cost is the last column of a table whose `tr.trhead` ends in "Cost".
 - bs4 returns `accesskey` as a list.
 - Single-key input: a non-hotkey key on a page with a form starts filling form 1
   (prefilled via readline). `:` and `#` start typed commands.
