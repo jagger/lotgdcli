@@ -87,17 +87,19 @@ Start with `:` or `#` to type a longer command, then press Enter:
 | Command       | Action                                                     |
 |---------------|------------------------------------------------------------|
 | `#3`          | Follow menu entry number 3 (for entries without a hotkey)  |
-| `:f` / `:f2`  | Fill in and submit form 1 / form 2: bank deposits, chat, naming things, ... |
+| `:f` / `:f2`  | Fill in and submit form 1 / form 2 (or just start typing for form 1) |
 | `:r`          | Reload the current page                                    |
 | `:motd`       | Show the message of the day                                |
 | `:login`      | Log in again, e.g. after your session times out            |
 | `:raw`        | Save the current page's HTML to a temp file                |
 | `:q`          | Quit                                                       |
 
-**Forms:** pages with input boxes (the bank, the village chat, the inn) show
-`[form 1]` in the text and `forms: N` under the menu. Type `:f` and you'll be
-asked for each field in turn. Press Enter to keep a default, or pick numbered
-options for drop-downs.
+**Forms:** on pages with an input box (bank, inn, village chat, naming things)
+just start typing. `form: just start typing to fill it in` shows under the menu,
+and any key that isn't a menu hotkey goes into the box. For example, at the bank
+press `D` for Deposit, then type `500` and press Enter. Pages with several forms
+or fields walk you through each one, and `:f2` picks form 2. Press Enter on an
+empty box to keep its default.
 
 **Logging out:** as on the website, use the in-game quit option (for example
 "Quit to the fields") before `:q`, so your character is safely logged out.

@@ -100,7 +100,8 @@ class Repl:
                 grid.add_row(*row)
             self.con.print(grid)
         if page.forms:
-            self.con.print(Text(f"  forms: {len(page.forms)} (type :f or :f<n>)", style="dim cyan"))
+            self.con.print(Text(f"  form: just start typing to fill it in" if len(page.forms) == 1
+                                else f"  forms: {len(page.forms)} (start typing for form 1, or :f<n>)", style="dim cyan"))
 
     @staticmethod
     def flow(lines, ncols):
@@ -137,10 +138,13 @@ class Repl:
         hits = [n for n in page.navs if n.label.lower().startswith(cmd.lower())]
         if len(hits) == 1:
             return self.c.get(hits[0].href)
+        if len(cmd) == 1 and cmd.isprintable() and page.forms:
+            # not a hotkey: treat it as the start of typing into the page's form
+            return self.fill(1, first=cmd)
         self.con.print("[red]unknown command — ? for help[/]")
         return None
 
-    def fill(self, n):
+    def fill(self, n, first=None):
         forms = self.c.page.forms
         if not 1 <= n <= len(forms):
             self.con.print("[red]no such form[/]")
@@ -166,7 +170,8 @@ class Repl:
             elif f.kind == "password":
                 values[f.name] = getpass.getpass(f"{prompt}: ")
             else:
-                ans = self.con.input(f"{prompt}" + (f" [{f.value}]" if f.value else "") + ": ")
+                ans = prefilled_input(f"{prompt}" + (f" [{f.value}]" if f.value else "") + ": ", first or "")
+                first = None
                 values[f.name] = ans if ans else f.value
         button = form.buttons[0]
         if len(form.buttons) > 1:
@@ -261,3 +266,18 @@ def getch():
         return sys.stdin.read(1)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def prefilled_input(prompt, text=""):
+    """input() with `text` already typed in (and editable), via readline."""
+    if not text:
+        return input(prompt)
+    try:
+        import readline
+    except ImportError:
+        return text + input(prompt + text)
+    readline.set_startup_hook(lambda: readline.insert_text(text))
+    try:
+        return input(prompt)
+    finally:
+        readline.set_startup_hook()

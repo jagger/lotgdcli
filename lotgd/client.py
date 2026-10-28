@@ -13,6 +13,27 @@ DEFAULT_URL = "https://lotgd.popetoad.com/"
 SKIN = "legacy:jade.htm"  # parser is written against this skin's layout
 
 
+class _Session(requests.Session):
+    """Keeps every request to an https server on https. Some servers (popetoad
+    behind Cloudflare) redirect to http:// after login, which would send the
+    session cookie in the clear."""
+
+    def __init__(self, base):
+        super().__init__()
+        u = urlparse(base)
+        self.https_host = u.hostname if u.scheme == "https" else None
+
+    def secure(self, url):
+        u = urlparse(url)
+        if self.https_host and u.scheme == "http" and u.hostname == self.https_host:
+            return u._replace(scheme="https").geturl()
+        return url
+
+    def get_redirect_target(self, resp):
+        target = super().get_redirect_target(resp)
+        return self.secure(urljoin(resp.url, target)) if target else target
+
+
 class Client:
     def __init__(self, base_url=DEFAULT_URL, debug_dir=None):
         self.debug_dir = Path(debug_dir) if debug_dir else None
@@ -20,7 +41,7 @@ class Client:
         if self.debug_dir:
             self.debug_dir.mkdir(parents=True, exist_ok=True)
         self.base = base_url if base_url.endswith("/") else base_url + "/"
-        self.s = requests.Session()
+        self.s = _Session(self.base)
         self.s.headers["User-Agent"] = "lotgdcli/0.1 (terminal client)"
         self.s.cookies.set("template", SKIN, domain=urlparse(self.base).hostname, path="/")
         self.page = None
@@ -46,12 +67,13 @@ class Client:
         (self.debug_dir / name).write_text(resp.text)
         hops = " -> ".join(f"{r.status_code} {r.url}" for r in resp.history)
         req = resp.request
-        self._log(f"{time.strftime('%H:%M:%S')} #{self.n} {req.method} {req.url}"
+        first = resp.history[0].request if resp.history else req
+        self._log(f"{time.strftime('%H:%M:%S')} #{self.n} {first.method} {first.url}"
                   + (f"\n    redirects: {hops}" if hops else "")
                   + f"\n    final: {resp.status_code} {resp.url} ({len(resp.text)} bytes) -> {name}")
 
     def url(self, href):
-        return urljoin(self.page.url if self.page else self.base, href)
+        return self.s.secure(urljoin(self.page.url if self.page else self.base, href))
 
     def home(self):
         return self._load(self.s.get(self.base + "home.php", timeout=30))

@@ -307,6 +307,11 @@ def parse(html, url=""):
     head = soup.select_one("td.headrow")
     main = head.find("td", attrs={"width": "100%"}) if head else None
     main = main or soup.body or soup
+    for dbg in main.select("div.debug"):  # server-side PHP debug dump + its toggle button
+        btn = dbg.find_previous_sibling("button")
+        if btn:
+            btn.decompose()
+        dbg.decompose()
     for sel in main.find_all("select", attrs={"name": "template"}):
         sel.find_parent("form").decompose()  # skin picker; we pin our own skin
 
