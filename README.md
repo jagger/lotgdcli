@@ -112,6 +112,38 @@ as in `Golden Hilted Sword  12  6840 (need 814 more)`.
 **Logging out:** as on the website, use the in-game quit option (for example
 "Quit to the fields") before `:q`, so your character is safely logged out.
 
+## Agentic play (MCP server)
+
+`lotgd-mcp` is an [MCP](https://modelcontextprotocol.io) server that lets an AI
+agent like Claude Code play your character with the same parser as the terminal
+client. It needs Python 3.10+.
+
+```sh
+.venv/bin/pip install -e '.[mcp]'
+mkdir -p ~/.config/lotgdcli
+printf 'user=YourCharacter\npassword=secret\n' > ~/.config/lotgdcli/credentials
+chmod 600 ~/.config/lotgdcli/credentials
+claude mcp add --scope user lotgd -- "$PWD/.venv/bin/lotgd-mcp"
+ln -s "$PWD/skills/lotgd" ~/.claude/skills/lotgd   # optional: play strategy + ground rules
+```
+
+Then ask Claude something like "play my LoTGD turns for today".
+
+| Tool            | Does                                                         |
+|-----------------|--------------------------------------------------------------|
+| `lotgd_login`   | Log in with the configured character                         |
+| `lotgd_look`    | Show the current page (no request)                           |
+| `lotgd_choose`  | Follow a hotkey (`F`), `#n` entry or in-text link, or a label |
+| `lotgd_submit`  | Fill in and submit a form (field name → value)               |
+| `lotgd_reload`  | Reload the current page                                      |
+
+The password is only read from the credentials file or `LOTGD_USER` /
+`LOTGD_PASSWORD`. It's never a tool argument, so it doesn't pass through the model.
+To stay polite to the server, the MCP server waits at least `LOTGD_MIN_INTERVAL`
+seconds (default 1.5) between requests and stops after `LOTGD_MAX_REQUESTS`
+(default 300) per session. `LOTGD_URL` and `LOTGD_DEBUG` (a directory) work like
+`--url` and `--debug`.
+
 ## Troubleshooting
 
 - **A page looks wrong or text is missing:** press `:raw` on that page. It saves
@@ -147,6 +179,8 @@ Code layout:
 | `lotgd/parser.py`  | HTML → page text, menu, forms, stats            |
 | `lotgd/repl.py`    | Screen rendering and key handling               |
 | `lotgd/colors.py`  | LoTGD color classes → terminal colors           |
+| `lotgd/mcp_server.py` | MCP server for agentic play                  |
+| `skills/lotgd/`    | Claude skill: how to play + ground rules        |
 
 ## Credits
 

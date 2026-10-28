@@ -10,8 +10,12 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["requests", "beautifulsoup4", "html5lib", "rich"]
 
+[project.optional-dependencies]
+mcp = ["mcp>=2,<3"]  # lotgd-mcp server for agentic play; needs Python 3.10+
+
 [project.scripts]
 lotgd = "lotgd.__main__:main"
+lotgd-mcp = "lotgd.mcp_server:main"
 
 [tool.setuptools]
 packages = ["lotgd"]

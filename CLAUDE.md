@@ -32,6 +32,12 @@ so never commit them. They're the best input for parser bugs: read
 - `lotgd/parser.py`: HTML → `Page` (body as rich Text, navs, forms, stats, stat bars)
 - `lotgd/repl.py`: rendering (nav columns, bottom status bar) and single-key input loop
 - `lotgd/colors.py`: LoTGD `col*` CSS classes → rich styles
+- `lotgd/mcp_server.py`: `lotgd-mcp` MCP server (extra `[mcp]`, mcp 2.x `MCPServer`, not v1
+  `FastMCP`). Holds one Client per process. Credentials come only from env or
+  `~/.config/lotgdcli/credentials`, never tool args. Every server hit goes through
+  `_request` (rate limit + per-session cap). Keep it that way.
+- `skills/lotgd/SKILL.md`: agent play guide + ground rules (no chat/mail/PvP unless asked).
+  Installed by symlinking into `~/.claude/skills/`.
 
 ## Gotchas (learned the hard way)
 
