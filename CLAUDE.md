@@ -64,8 +64,16 @@ so never commit them. They're the best input for parser bugs: read
   in the text (weapons: "I'll give you N trade-in value", armor: "she'll give you N
   for them"), and the cost is the last column of a table whose `tr.trhead` ends in "Cost".
 - bs4 returns `accesskey` as a list.
-- Single-key input: a non-hotkey key on a page with a form starts filling form 1
-  (prefilled via readline). `:` and `#` start typed commands.
+- Single-key input: a non-hotkey key starts filling the first form that has a
+  text/textarea field (prefilled via readline). `:` and `#` start typed commands.
+- **Never let a stray key cost gold.** Forms with only hidden fields are bare buttons
+  (beggarslane alms is form 1 there, ahead of the chat box). They are never the
+  type-to-fill target, and `:f` asks y/N before submitting them. Pending keypresses
+  are flushed (`tcflush`) before each prompt, so keys mashed during a fight don't
+  land on the next page.
+- **badnav.php replays the previous page's output** when the server rejects a nav or
+  stale form (old `c=` counter or token). The text looks like the action happened
+  again ("you hand the beggar 31 gold") but nothing changed. The REPL flags it.
 - Server source isn't viewable on the site; upstream is github.com/NB-Core/lotgd.
 
 ## Testing

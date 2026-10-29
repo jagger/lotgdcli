@@ -94,12 +94,22 @@ Start with `:` or `#` to type a longer command, then press Enter:
 | `:raw`        | Save the current page's HTML to a temp file                |
 | `:q`          | Quit                                                       |
 
-**Forms:** on pages with an input box (bank, inn, village chat, naming things)
-just start typing. `form: just start typing to fill it in` shows under the menu,
-and any key that isn't a menu hotkey goes into the box. For example, at the bank
-press `D` for Deposit, then type `500` and press Enter. Pages with several forms
-or fields walk you through each one, and `:f2` picks form 2. Press Enter on an
-empty box to keep its default.
+**Forms:** on pages with a text box (bank, inn, village chat, naming things)
+just start typing. Any key that isn't a menu hotkey goes into the box, and
+`form N: just start typing to fill it in` under the menu tells you which form
+that is. For example, at the bank press `D` for Deposit, then type `500` and
+press Enter. Pages with several fields walk you through each one. Press Enter on
+an empty box to keep its default, or Ctrl-C to cancel without sending anything.
+
+Forms that are just a button, like giving alms in Beggar's Lane, never fire from
+a stray key. Press them with `:f1` (as listed under `buttons:`), and confirm with `y`.
+
+**Mashing keys is safe:** keys you press while a page is loading are thrown away,
+so hammering `F` through a fight can't spill onto the victory page. If you press
+a key the page no longer has, the client tells you, e.g. "There's no [F] here any
+more ... the fight is over". If the server rejects an action and re-shows an
+earlier page (LoTGD calls this "badnav"), the client says so. That page's
+"you gave 31 gold" text is a replay, and nothing was spent again.
 
 **Shops and other in-text links:** some pages put links in the text instead of
 the menu, like the items at MightyE's Weapons or Pegasus Armor. These show up

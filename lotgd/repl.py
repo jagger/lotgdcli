@@ -8,6 +8,7 @@ import termios
 import tempfile
 import tty
 from itertools import zip_longest
+from urllib.parse import urlparse
 
 from rich.console import Console
 from rich.table import Table
@@ -31,6 +32,7 @@ class Repl:
         self.user = user
         self.password = password
         self.con = Console(highlight=False)
+        self.prev = None  # the page before the current one, for "that key was on the last page" hints
 
     # ---- rendering -------------------------------------------------------
     def show(self, page):
@@ -102,8 +104,13 @@ class Repl:
                 grid.add_row(*row)
             self.con.print(grid)
         if page.forms:
-            self.con.print(Text(f"  form: just start typing to fill it in" if len(page.forms) == 1
-                                else f"  forms: {len(page.forms)} (start typing for form 1, or :f<n>)", style="dim cyan"))
+            typable = next((i for i, f in enumerate(page.forms, 1)
+                            if any(fl.kind in ("text", "textarea") for fl in f.fields)), None)
+            hint = f"  form {typable}: just start typing to fill it in" if typable else "  "
+            others = [str(i) for i in range(1, len(page.forms) + 1) if i != typable]
+            if others:
+                hint += ("  ·  " if typable else "") + "buttons: " + ", ".join(f":f{i}" for i in others)
+            self.con.print(Text(hint, style="dim cyan"))
 
     @staticmethod
     def flow(lines, ncols):
@@ -141,11 +148,23 @@ class Repl:
         hits = [n for n in page.navs if not n.inline and n.label.lower().startswith(cmd.lower())]
         if len(hits) == 1:
             return self.c.get(hits[0].href)
-        if len(cmd) == 1 and cmd.isprintable() and page.forms:
-            # not a hotkey: treat it as the start of typing into the page's form
-            return self.fill(1, first=cmd)
-        self.con.print("[red]unknown command — ? for help[/]")
+        typable = next((i for i, f in enumerate(page.forms, 1)
+                        if any(fl.kind in ("text", "textarea") for fl in f.fields)), None)
+        if len(cmd) == 1 and cmd.isprintable() and not cmd.isspace() and typable:
+            # not a hotkey: treat it as the start of typing into the page's text box
+            return self.fill(typable, first=cmd)
+        self.unknown_key(cmd)
         return None
+
+    def unknown_key(self, cmd):
+        was = None
+        if self.prev and len(cmd) == 1:
+            was = next((n for n in self.prev.navs if n.key and n.key.lower() == cmd.lower()), None)
+        if was:
+            self.con.print(f"[yellow]There's no \\[{cmd.upper()}] here any more. \\[{cmd.upper()}] {was.label} was on "
+                           f"the previous page; this page has moved on (e.g. the fight is over).[/]")
+        else:
+            self.con.print(f"[yellow]No \\[{cmd.upper() if len(cmd) == 1 else cmd}] on this page. ? for help.[/]")
 
     def fill(self, n, first=None):
         forms = self.c.page.forms
@@ -153,7 +172,20 @@ class Repl:
             self.con.print("[red]no such form[/]")
             return None
         form = forms[n - 1]
+        try:
+            return self._fill(form, first)
+        except (KeyboardInterrupt, EOFError):
+            self.con.print("\n[yellow]cancelled, nothing was sent[/]")
+            return None
+
+    def _fill(self, form, first):
         values = {}
+        if not any(f.kind != "hidden" for f in form.fields):
+            # a bare button (e.g. "give alms"): pressing it can cost gold, so ask
+            label = form.buttons[0][1] if form.buttons else "Submit"
+            if self.con.input(f"Press the [bold]{label}[/] button? \\[y/N]: ").strip().lower() != "y":
+                self.con.print("[yellow]cancelled, nothing was sent[/]")
+                return None
         for f in form.fields:
             if f.kind == "hidden":
                 values[f.name] = f.value
@@ -201,6 +233,7 @@ class Repl:
         """One keypress picks a nav; ':', '#' or '?' starts a typed command."""
         if not sys.stdin.isatty():
             return self.con.input("[bold green]> [/]").strip()
+        termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
         self.con.print("[bold green]> [/]", end="")
         key = getch()
         if key in ("\x03", "\x04"):  # ctrl-c / ctrl-d
@@ -254,7 +287,11 @@ class Repl:
             except Exception as e:  # network hiccups shouldn't kill the session
                 self.con.print(f"[red]error: {e}[/]")
             if new is not None:
-                page = new
+                if urlparse(new.url).path.endswith("badnav.php") and cmd != ":login":
+                    self.con.print("[bold yellow]The server didn't accept that action (it re-showed an earlier "
+                                   "page). Nothing new happened: no gold spent, no turn used.[/]")
+                    self.con.input("[dim](enter to continue)[/]")
+                self.prev, page = page, new
             elif cmd not in ("?", ":raw", ":motd"):
                 continue
             else:
