@@ -33,15 +33,20 @@ class Repl:
         self.password = password
         self.con = Console(highlight=False)
         self.prev = None  # the page before the current one, for "that key was on the last page" hints
+        self.notes = []  # messages to print under the next page, since show() clears the screen
 
     # ---- rendering -------------------------------------------------------
     def show(self, page):
         con = self.con
+        con.clear()  # each page starts at the top, so the menu doesn't jump around (no-op when piped)
         con.rule(page.title or "LoTGD", style="green")
         con.print(page.body)
         con.print()
         self.show_navs(page)
         self.show_stats(page)
+        for note in self.notes:
+            con.print(note)
+        self.notes = []
 
     def show_stats(self, page):
         pairs = [(l, v) for l, v in page.stats if v]
@@ -225,7 +230,7 @@ class Repl:
         page = self.c.login(self.user, self.password)
         if not self.c.logged_in:
             self.password = None
-            self.con.print("[bold red]Login failed.[/]")
+            self.notes.append("[bold red]Login failed.[/]")
         return page
 
     # ---- input -----------------------------------------------------------
@@ -249,11 +254,14 @@ class Repl:
     # ---- main loop -------------------------------------------------------
     def run(self):
         page = self.login() if self.user is not None or self.password else self.c.home()
+        redraw = True
         while True:
-            self.show(page)
-            if self.c.logged_in and self.c.is_logged_out(page):
-                self.c.logged_in = False
-                self.con.print("[yellow]You've been logged out (session expired?). Type :login to log back in.[/]")
+            if redraw:
+                self.show(page)
+                if self.c.logged_in and self.c.is_logged_out(page):
+                    self.c.logged_in = False
+                    self.con.print("[yellow]You've been logged out (session expired?). Type :login to log back in.[/]")
+            redraw = True
             try:
                 cmd = self.read_command()
             except (EOFError, KeyboardInterrupt):
@@ -293,7 +301,9 @@ class Repl:
                     self.con.input("[dim](enter to continue)[/]")
                 self.prev, page = page, new
             elif cmd not in ("?", ":raw", ":motd"):
-                continue
+                # nothing changed (unknown key, error, cancelled): keep the page and
+                # the message under it on screen instead of clearing them away
+                redraw = False
             else:
                 self.con.input("[dim](enter to continue)[/]")
 
