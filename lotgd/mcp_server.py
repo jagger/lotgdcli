@@ -106,7 +106,7 @@ def render(page, note=""):
             if f.value:
                 desc += f" default={f.value!r}"
             out.append(desc)
-        out.append("- buttons: " + ", ".join(repr(b[1]) for b in form.buttons))
+        out.append("- buttons: " + ", ".join(repr(b[2]) for b in form.buttons))
     stats = []
     for label, value in page.stats:
         if not value:
@@ -220,9 +220,9 @@ def lotgd_submit(form: int = 1, values: dict[str, str] | None = None, button: st
             return f"Unknown field(s) {sorted(values)}; nothing was sent."
         btn = f.buttons[0]
         if button:
-            btn = next((b for b in f.buttons if b[1].lower() == button.lower()), None)
+            btn = next((b for b in f.buttons if b[2].lower() == button.lower()), None)
             if not btn:
-                return f"No button {button!r}; buttons are {[b[1] for b in f.buttons]}. Nothing was sent."
+                return f"No button {button!r}; buttons are {[b[2] for b in f.buttons]}. Nothing was sent."
         return render(_request(c.submit, f, data, btn), f"submitted form {form}")
 
 

@@ -11,6 +11,7 @@ from itertools import zip_longest
 from urllib.parse import urlparse
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
@@ -185,39 +186,42 @@ class Repl:
 
     def _fill(self, form, first):
         values = {}
+        if self.con.is_terminal:
+            # the field prompts take over the "> " line the key or :f was typed on
+            self.con.file.write("\x1b[1A\r\x1b[2K")
         if not any(f.kind != "hidden" for f in form.fields):
             # a bare button (e.g. "give alms"): pressing it can cost gold, so ask
-            label = form.buttons[0][1] if form.buttons else "Submit"
-            if self.con.input(f"Press the [bold]{label}[/] button? \\[y/N]: ").strip().lower() != "y":
+            label = form.buttons[0][2]
+            if self.con.input(f"[bold green]Press \\[{escape(label)}]?[/] \\[y/N] ").strip().lower() != "y":
                 self.con.print("[yellow]cancelled, nothing was sent[/]")
                 return None
         for f in form.fields:
             if f.kind == "hidden":
                 values[f.name] = f.value
                 continue
-            prompt = f.label or f.name
+            prompt = (f.label or f.name).rstrip(" :")
             if f.kind in ("select", "radio"):
                 for i, (val, lab) in enumerate(f.options, 1):
                     mark = "*" if val == f.value else " "
                     self.con.print(f"   {mark}{i}. {lab}")
-                ans = self.con.input(f"{prompt} [number, enter keeps *]: ").strip()
+                ans = self.con.input(f"[bold green]{escape(prompt)}[/] [dim](number, enter keeps *)[/] ").strip()
                 values[f.name] = f.options[int(ans) - 1][0] if ans.isdigit() and 0 < int(ans) <= len(f.options) else f.value
             elif f.kind == "checkbox":
-                ans = self.con.input(f"{prompt} [y/n, default {'y' if f.value else 'n'}]: ").strip().lower()
+                ans = self.con.input(f"[bold green]{escape(prompt)}[/] [dim](y/n, enter keeps {'y' if f.value else 'n'})[/] ").strip().lower()
                 on = (ans == "y") if ans else bool(f.value)
                 if on:
                     values[f.name] = f.options[0][0]
             elif f.kind == "password":
-                values[f.name] = getpass.getpass(f"{prompt}: ")
+                values[f.name] = getpass.getpass(field_prompt(prompt).replace("\001", "").replace("\002", ""))
             else:
-                ans = prefilled_input(f"{prompt}" + (f" [{f.value}]" if f.value else "") + ": ", first or "")
+                ans = prefilled_input(field_prompt(prompt, f.value), first or "")
                 first = None
                 values[f.name] = ans if ans else f.value
         button = form.buttons[0]
         if len(form.buttons) > 1:
-            for i, (_, lab) in enumerate(form.buttons, 1):
-                self.con.print(f"   {i}. {lab}")
-            ans = self.con.input("button [1]: ").strip()
+            for i, (_, _, lab) in enumerate(form.buttons, 1):
+                self.con.print(f"   {i}. {escape(lab)}")
+            ans = self.con.input(f"[bold green]Press which button?[/] [dim](enter = {escape(button[2])})[/] ").strip()
             if ans.isdigit() and 0 < int(ans) <= len(form.buttons):
                 button = form.buttons[int(ans) - 1]
         return self.c.submit(form, values, button)
@@ -318,14 +322,22 @@ def getch():
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
+def field_prompt(label, default=""):
+    """A readline-safe input() prompt styled like the "> " command prompt.
+    \001/\002 tell readline the colour codes take no width, so editing keeps its place."""
+    hint = f" \001\x1b[2m\002[{default}]\001\x1b[0m\002" if default else ""
+    return f"\001\x1b[1;32m\002{label}\001\x1b[0m\002{hint} > "
+
+
 def prefilled_input(prompt, text=""):
     """input() with `text` already typed in (and editable), via readline."""
-    if not text:
-        return input(prompt)
     try:
         import readline
     except ImportError:
+        prompt = prompt.replace("\001", "").replace("\002", "")
         return text + input(prompt + text)
+    if not text:
+        return input(prompt)
     readline.set_startup_hook(lambda: readline.insert_text(text))
     try:
         return input(prompt)

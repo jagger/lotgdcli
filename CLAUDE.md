@@ -64,6 +64,8 @@ so never commit them. They're the best input for parser bugs: read
   in the text (weapons: "I'll give you N trade-in value", armor: "she'll give you N
   for them"), and the cost is the last column of a table whose `tr.trhead` ends in "Cost".
 - bs4 returns `accesskey` as a list.
+- Form buttons are `(name, value, label)`: `<button>` elements post their `value` but show their
+  text, so the label can differ from what's sent. Show/match buttons by `label` (`b[2]`).
 - Single-key input: a non-hotkey key starts filling the first form that has a
   text/textarea field (prefilled via readline). `:` and `#` start typed commands.
 - **Never let a stray key cost gold.** Forms with only hidden fields are bare buttons

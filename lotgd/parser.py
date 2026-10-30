@@ -37,7 +37,7 @@ class Form:
     action: str
     method: str
     fields: list
-    buttons: list  # [(name, value)]
+    buttons: list  # [(name, value, label)]
 
 
 @dataclass
@@ -219,13 +219,16 @@ def parse_forms(root):
     forms = []
     for f in root.find_all("form"):
         fields, buttons, radios = [], [], {}
-        for el in f.find_all(["input", "select", "textarea"]):
+        for el in f.find_all(["input", "select", "textarea", "button"]):
             name = el.get("name")
-            if el.name == "input":
+            if el.name == "button":  # <button> defaults to type=submit; its label is its text
+                if (el.get("type") or "submit").lower() == "submit":
+                    buttons.append((name, el.get("value", ""), _clean(el.get_text()) or el.get("value") or "Submit"))
+            elif el.name == "input":
                 kind = (el.get("type") or "text").lower()
                 if kind in BUTTON_TYPES:
                     if kind in ("submit", "image"):
-                        buttons.append((name, el.get("value") or el.get("alt") or "Submit"))
+                        buttons.append((name, el.get("value", ""), el.get("value") or el.get("alt") or "Submit"))
                     continue
                 if not name:
                     continue
@@ -254,7 +257,7 @@ def parse_forms(root):
             lab = root.find("label", attrs={"for": fld.name})
             if lab:
                 fld.label = _clean(lab.get_text())
-        forms.append(Form(f.get("action") or "", (f.get("method") or "get").lower(), fields, buttons or [(None, "Submit")]))
+        forms.append(Form(f.get("action") or "", (f.get("method") or "get").lower(), fields, buttons or [(None, "", "Submit")]))
     return forms
 
 
