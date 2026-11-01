@@ -51,12 +51,19 @@ You need an existing character. Create one on the server's website first.
 ```sh
 lotgd -u YourCharacter                 # prompts for your password
 LOTGD_PASSWORD=secret lotgd -u Name    # password from the environment
+lotgd --login                          # character + password from the credentials file
 lotgd                                  # browse logged out (news, warrior list, ...)
 lotgd --url https://other.server/ -u Name
 lotgd -u Name --debug                  # see Troubleshooting
 ```
 
-Your password is only sent to the server and never written to disk.
+`--login` (`-l`) logs in as `LOTGD_USER` or the `user=` line of
+`~/.config/lotgdcli/credentials` (the same file the MCP server uses, see
+[Agentic play](#agentic-play-mcp-server)). With `-u`, the password comes from
+`LOTGD_PASSWORD`, then from the file if the file is for that character, else
+you're asked. Plain `lotgd` never logs in on its own.
+
+lotgd never writes your password to disk; it only sends it to the server.
 
 ### The screen
 

@@ -9,13 +9,13 @@ import os
 import re
 import threading
 import time
-from pathlib import Path
+from urllib.parse import urlparse
 
 from mcp.server.mcpserver import MCPServer
 
 from .client import DEFAULT_URL, Client
+from .credentials import CRED_FILE, load_credentials
 
-CRED_FILE = Path(os.environ.get("LOTGD_CREDENTIALS", "~/.config/lotgdcli/credentials")).expanduser()
 # Keep it polite: at most one request per MIN_INTERVAL seconds, and a hard cap on
 # requests per server process so a runaway agent loop can't hammer the server.
 MIN_INTERVAL = float(os.environ.get("LOTGD_MIN_INTERVAL", "1.5"))
@@ -35,19 +35,6 @@ _lock = threading.Lock()
 _client = None
 _requests = 0
 _last = 0.0
-
-
-def _creds():
-    user, password = os.environ.get("LOTGD_USER"), os.environ.get("LOTGD_PASSWORD")
-    if CRED_FILE.is_file():
-        for line in CRED_FILE.read_text().splitlines():
-            k, _, v = line.partition("=")
-            k, v = k.strip().lower(), v.strip()
-            if k == "user" and not user:
-                user = v
-            elif k == "password" and not password:
-                password = v
-    return user, password
 
 
 def _get_client():
@@ -73,12 +60,18 @@ def _request(fn, *args):
         _last = time.monotonic()
 
 
-def render(page, note=""):
+def render(page, note="", check_badnav=True):
     """A page as plain text for the model: body, menu, forms, stats."""
     c = _get_client()
     out = [f"# {page.title or 'LoTGD'}"]
     if note:
         out.append(f"({note})")
+    if check_badnav and urlparse(page.url).path.endswith("badnav.php"):
+        # the server rejected the nav or a stale form and replayed an earlier page;
+        # its text reads as if the action happened again, but nothing changed
+        out.append("(WARNING: the server rejected that action and re-showed an earlier page. "
+                   "Nothing new happened: no gold spent, no turn used. Don't repeat it; "
+                   "pick from the menu below.)")
     out += ["", page.body.plain.strip(), "", "## Menu"]
     section = None
     for i, nav in enumerate(page.navs, 1):
@@ -129,7 +122,7 @@ def render(page, note=""):
 def lotgd_login() -> str:
     """Log in with the character configured for this server (LOTGD_USER/LOTGD_PASSWORD
     or the credentials file). Returns the first in-game page."""
-    user, password = _creds()
+    user, password = load_credentials()
     if not (user and password):
         return (f"No credentials configured. Ask the user to put 'user=Name' and 'password=...' "
                 f"lines in {CRED_FILE} (chmod 600), or set LOTGD_USER/LOTGD_PASSWORD.")
@@ -139,8 +132,8 @@ def lotgd_login() -> str:
             _request(c.home)
         page = _request(c.login, user, password)
         if not c.logged_in:
-            return render(page, "LOGIN FAILED: check the configured credentials")
-        return render(page, f"logged in as {user}")
+            return render(page, "LOGIN FAILED: check the configured credentials", check_badnav=False)
+        return render(page, f"logged in as {user}", check_badnav=False)
 
 
 @mcp.tool()
@@ -157,7 +150,8 @@ def lotgd_choose(choice: str) -> str:
     """Follow a menu entry or in-text link on the current page.
 
     choice: the hotkey letter shown in brackets ("F" for [F] Forest), "#n" for a
-    numbered entry or in-text link ("#4"), or the entry's exact label.
+    numbered entry or in-text link ("#4"; a bare "4" works too unless 4 is a
+    hotkey), or the entry's exact label.
     """
     with _lock:
         c = _get_client()
@@ -176,19 +170,23 @@ def lotgd_choose(choice: str) -> str:
                 hits = [n for n in page.navs
                         if re.sub(r"^\(.\)\s*", "", n.label).lower() == choice.lower() or n.label.lower() == choice.lower()]
                 nav = hits[0] if len(hits) == 1 else None
+            if not nav and m:  # "4" or "[4]" with no hotkey 4: treat it as "#4"
+                n = int(m[1])
+                nav = page.navs[n - 1] if 1 <= n <= len(page.navs) else None
         if not nav:
             return f"No entry {choice!r} on this page; nothing was sent.\n\n" + render(page)
         return render(_request(c.get, nav.href), f"chose: {nav.label}")
 
 
 @mcp.tool()
-def lotgd_submit(form: int = 1, values: dict[str, str] | None = None, button: str | None = None) -> str:
+def lotgd_submit(form: int = 1, values: dict[str, str | int | float | bool] | None = None,
+                 button: str | None = None) -> str:
     """Fill in and submit a form on the current page (bank, inn, chat, naming...).
 
     form: form number as listed under "## Form n".
     values: field name -> value. Fields you leave out keep their defaults. For
-        select/radio fields give the option value or its label; for checkboxes
-        "on"/"off".
+        select/radio fields give the option value or its label (any case); for
+        checkboxes "on"/"off" or true/false.
     button: label of the button to press (default: the first one).
     """
     with _lock:
@@ -200,6 +198,8 @@ def lotgd_submit(form: int = 1, values: dict[str, str] | None = None, button: st
         data = {}
         for fld in f.fields:
             given = values.pop(fld.name, None)
+            if given is not None:
+                given = str(given)  # agents often send numbers/booleans as JSON, not strings
             if fld.kind == "password":
                 return "This form wants a password; use lotgd_login instead. Nothing was sent."
             if given is None:
@@ -208,6 +208,8 @@ def lotgd_submit(form: int = 1, values: dict[str, str] | None = None, button: st
                 continue
             if fld.kind in ("select", "radio"):
                 match = next((v for v, l in fld.options if given in (v, l)), None)
+                if match is None:  # "deposit" for "Deposit"
+                    match = next((v for v, l in fld.options if given.lower() in (v.lower(), l.lower())), None)
                 if match is None:
                     return f"{given!r} isn't an option for {fld.name}; nothing was sent."
                 data[fld.name] = match

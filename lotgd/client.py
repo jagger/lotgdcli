@@ -58,13 +58,13 @@ class Client:
         return self.page
 
     def _log(self, line):
-        with open(self.debug_dir / "requests.log", "a") as fh:
+        with open(self.debug_dir / "requests.log", "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
 
     def _dump(self, resp):
         self.n += 1
         name = f"{self.n:03d}-{Path(urlparse(resp.url).path).stem or 'root'}.html"
-        (self.debug_dir / name).write_text(resp.text)
+        (self.debug_dir / name).write_text(resp.text, encoding="utf-8")
         hops = " -> ".join(f"{r.status_code} {r.url}" for r in resp.history)
         req = resp.request
         first = resp.history[0].request if resp.history else req

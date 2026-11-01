@@ -10,6 +10,7 @@ import tty
 from itertools import zip_longest
 from urllib.parse import urlparse
 
+import requests
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
@@ -28,10 +29,11 @@ HELP = """\
 
 
 class Repl:
-    def __init__(self, client, user=None, password=None):
+    def __init__(self, client, user=None, password=None, login=None):
         self.c = client
         self.user = user
         self.password = password
+        self.want_login = (user is not None or bool(password)) if login is None else login
         self.con = Console(highlight=False)
         self.prev = None  # the page before the current one, for "that key was on the last page" hints
         self.notes = []  # messages to print under the next page, since show() clears the screen
@@ -60,8 +62,8 @@ class Repl:
                 break
         parts = []
         if hp:
-            m = re.search(r"(-?\d+)\s*/\s*(\d+)", hp[1])
-            cur, top = (int(m[1]), int(m[2])) if m else (None, None)
+            m = re.search(r"(-?[\d,]+)\s*/\s*([\d,]+)", hp[1])  # "1,250 / 1,500" past 999
+            cur, top = (int(m[1].replace(",", "")), int(m[2].replace(",", ""))) if m else (None, None)
             ratio = cur / top if m and top else 1
             color = "bright_green" if ratio > 0.6 else "bright_yellow" if ratio > 0.3 else "bold bright_red"
             parts.append(Text.assemble(("HP ", "bold"), (f"{cur}/{top}" if m else hp[1], color)))
@@ -257,7 +259,14 @@ class Repl:
 
     # ---- main loop -------------------------------------------------------
     def run(self):
-        page = self.login() if self.user is not None or self.password else self.c.home()
+        try:
+            page = self.login() if self.want_login else self.c.home()
+        except (EOFError, KeyboardInterrupt):
+            self.con.print()
+            return 1
+        except requests.RequestException as e:
+            self.con.print(f"[bold red]Couldn't connect to {escape(self.c.base)}:[/] {escape(str(e))}")
+            return 1
         redraw = True
         while True:
             if redraw:
@@ -287,13 +296,13 @@ class Repl:
                     self.con.print(parse(motd.text).body)
                 elif cmd == ":raw":
                     fd, path = tempfile.mkstemp(prefix="lotgd-", suffix=".html")
-                    with os.fdopen(fd, "w") as fh:
+                    with os.fdopen(fd, "w", encoding="utf-8") as fh:
                         fh.write(page.html)
                     self.con.print(f"saved {path}")
                 elif cmd == ":login":
                     new = self.login()
-                elif cmd == ":f" or (cmd.startswith(":f") and cmd[2:].isdigit()):
-                    new = self.fill(int(cmd[2:]) if len(cmd) > 2 else 1)
+                elif cmd == ":f" or (cmd.startswith(":f") and cmd[2:].strip().isdigit()):
+                    new = self.fill(int(cmd[2:]) if cmd[2:].strip() else 1)  # ":f2" or ":f 2"
                 else:
                     new = self.follow(cmd)
             except Exception as e:  # network hiccups shouldn't kill the session
