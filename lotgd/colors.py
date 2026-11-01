@@ -42,9 +42,14 @@ COLORS = {
 }
 
 
+_BY_LOWER = {k.lower(): v for k, v in COLORS.items()}
+
+
 def style_for(classes):
-    """Return the rich style for an element's class list, or None."""
+    """Return the rich style for an element's class list, or None. Matched
+    case-insensitively: some output spells them e.g. "coliceviolet"."""
     for cls in classes or ():
-        if cls in COLORS:
-            return COLORS[cls]
+        style = _BY_LOWER.get(cls.lower())
+        if style:
+            return style
     return None

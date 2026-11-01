@@ -31,11 +31,15 @@ so never commit them. They're the best input for parser bugs: read
 - `lotgd/client.py`: requests session, login, form submit, debug logging, https enforcement
 - `lotgd/parser.py`: HTML → `Page` (body as rich Text, navs, forms, stats, stat bars)
 - `lotgd/repl.py`: rendering (nav columns, bottom status bar) and single-key input loop
-- `lotgd/colors.py`: LoTGD `col*` CSS classes → rich styles
+- `lotgd/colors.py`: LoTGD `col*` CSS classes → rich styles (matched case-insensitively)
+- `lotgd/credentials.py`: `load_credentials()` shared by `lotgd --login`/`-u` and lotgd-mcp:
+  explicit value > `LOTGD_USER`/`LOTGD_PASSWORD` > `~/.config/lotgdcli/credentials`. The
+  file's password is only used for the file's own user. Plain `lotgd` stays logged out.
 - `lotgd/mcp_server.py`: `lotgd-mcp` MCP server (extra `[mcp]`, mcp 2.x `MCPServer`, not v1
   `FastMCP`). Holds one Client per process. Credentials come only from env or
   `~/.config/lotgdcli/credentials`, never tool args. Every server hit goes through
-  `_request` (rate limit + per-session cap). Keep it that way.
+  `_request` (rate limit + per-session cap). Keep it that way. `render()` flags
+  badnav.php replays so the agent doesn't think the action happened again.
 - `skills/lotgd/SKILL.md`: agent play guide + ground rules (no chat/mail/PvP unless asked).
   Installed by symlinking into `~/.claude/skills/`.
 
@@ -63,6 +67,8 @@ so never commit them. They're the best input for parser bugs: read
   can buy (cost <= on-hand Gold stat + trade-in). The trade-in comes from "give you N"
   in the text (weapons: "I'll give you N trade-in value", armor: "she'll give you N
   for them"), and the cost is the last column of a table whose `tr.trhead` ends in "Cost".
+  With no "give you N", trade-in is 0, but only on weapons.php/armor.php. Elsewhere the
+  match is what marks the page as one of those shops, so other "Cost" tables stay untouched.
 - bs4 returns `accesskey` as a list.
 - Form buttons are `(name, value, label)`: `<button>` elements post their `value` but show their
   text, so the label can differ from what's sent. Show/match buttons by `label` (`b[2]`).

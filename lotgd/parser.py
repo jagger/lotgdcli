@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 from rich.style import Style
@@ -322,15 +323,24 @@ def _num(s):
     return int(m[0].replace(",", "")) if m else None
 
 
-def annotate_shop(main, stats, soup):
+SHOPS = ("weapons.php", "armor.php")  # where cost <= gold + trade-in decides what you can buy
+
+
+def annotate_shop(main, stats, soup, url=""):
     """Weapon/armor shops grey out items costing more than gold on hand plus the
     trade-in for your current gear. Note how much more gold each one needs."""
     gold = next((_num(v) for l, v in stats if l.lower() == "gold"), None)
     # weapons: "I'll give you 2093 trade-in value"; armor: "she'll give you 120 for them"
     m = re.search(r"give you\s+([\d,]+)", main.get_text(" "))
-    if gold is None or not m:
+    if gold is None:
         return
-    budget = gold + _num(m[1])
+    if m:
+        tradein = _num(m[1])
+    elif urlparse(url).path.rsplit("/", 1)[-1] in SHOPS:
+        tradein = 0  # nothing to trade in
+    else:
+        return  # some other table with a Cost column: its buying rule may differ
+    budget = gold + tradein
     for head in main.select("tr.trhead"):
         cells = head.find_all("td", recursive=False)
         if not cells or _clean(cells[-1].get_text()).lower() != "cost":
@@ -371,7 +381,7 @@ def parse(html, url=""):
 
     bars = {}
     stats = parse_stats(side_cell, bars)
-    annotate_shop(main, stats, soup)
+    annotate_shop(main, stats, soup, url)
     navs = parse_navs(soup)
     body = render_text(main, navs)  # appends in-text links to navs
     return Page(
