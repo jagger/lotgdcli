@@ -1,5 +1,7 @@
 """HTTP session against a LoTGD server."""
 
+import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -11,6 +13,7 @@ from .parser import parse
 
 DEFAULT_URL = "https://lotgd.popetoad.com/"
 SKIN = "legacy:jade.htm"  # parser is written against this skin's layout
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or "~/.cache").expanduser() / "lotgdcli"
 
 
 class _Session(requests.Session):
@@ -46,12 +49,40 @@ class Client:
         self.s.cookies.set("template", SKIN, domain=urlparse(self.base).hostname, path="/")
         self.page = None
         self.logged_in = False
+        # gear levels learned from the weapon/armor shop tables, kept per server
+        # since the sidebar shows only names: {"weapon"|"armor": {name: level}}
+        self.gear_file = CACHE_DIR / f"gear-{urlparse(self.base).hostname}.json"
+        try:
+            self.gear = json.loads(self.gear_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            self.gear = {}
+
+    def learn_gear(self, page):
+        changed = False
+        for kind, items in page.gear.items():
+            known = self.gear.setdefault(kind, {})
+            if any(known.get(k) != v for k, v in items.items()):
+                known.update(items)
+                changed = True
+        if changed:
+            try:
+                self.gear_file.parent.mkdir(parents=True, exist_ok=True)
+                self.gear_file.write_text(json.dumps(self.gear, indent=1, sort_keys=True), encoding="utf-8")
+            except OSError:
+                pass  # coloring is a nicety; never break play over it
+
+    def gear_level(self, kind, name):
+        """(level, top) for an equipped item, or None if no shop table named it yet."""
+        items = self.gear.get(kind, {})
+        return (items[name], max(items.values())) if name in items else None
 
     def _load(self, resp):
         if self.debug_dir:
             self._dump(resp)
         resp.raise_for_status()
         self.page = parse(resp.text, resp.url)
+        if self.page.gear:
+            self.learn_gear(self.page)
         if self.debug_dir:
             self._log(f"    parsed: title={self.page.title!r} navs={len(self.page.navs)} "
                       f"forms={len(self.page.forms)} stats={len(self.page.stats)} body_chars={len(self.page.body.plain)}")
@@ -78,11 +109,16 @@ class Client:
     def home(self):
         return self._load(self.s.get(self.base + "home.php", timeout=30))
 
+    def mail(self):
+        """Open the mail popup. mail.php doesn't touch the game's allowed navs,
+        so the game page's links still work once you go back to it."""
+        return self._load(self.s.get(self.base + "mail.php", timeout=30))
+
     def get(self, href):
         return self._load(self.s.get(self.url(href), timeout=30))
 
     def submit(self, form, values, button=None):
-        data = dict(values)
+        data = dict(values)  # a value may be a list: same-name checkboxes (mail's msg[])
         if button and button[0]:
             data[button[0]] = button[1]
         target = self.url(form.action or (self.page.url if self.page else self.base))

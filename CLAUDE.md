@@ -31,7 +31,8 @@ so never commit them. They're the best input for parser bugs: read
 - `lotgd/client.py`: requests session, login, form submit, debug logging, https enforcement
 - `lotgd/parser.py`: HTML → `Page` (body as rich Text, navs, forms, stats, stat bars)
 - `lotgd/repl.py`: rendering (nav columns, bottom status bar) and single-key input loop
-- `lotgd/colors.py`: LoTGD `col*` CSS classes → rich styles (matched case-insensitively)
+- `lotgd/colors.py`: LoTGD `col*` CSS classes → rich styles, plus `gear_style` (MMO rarity
+  colors for weapon/armor level: gray/green/blue/orange, teal = shop's top item) (matched case-insensitively)
 - `lotgd/credentials.py`: `load_credentials()` shared by `lotgd --login`/`-u` and lotgd-mcp:
   explicit value > `LOTGD_USER`/`LOTGD_PASSWORD` > `~/.config/lotgdcli/credentials`. The
   file's password is only used for the file's own user. Plain `lotgd` stays logged out.
@@ -82,6 +83,15 @@ so never commit them. They're the best input for parser bugs: read
 - **badnav.php replays the previous page's output** when the server rejects a nav or
   stale form (old `c=` counter or token). The text looks like the action happened
   again ("you hand the beggar 31 gold") but nothing changed. The REPL flags it.
+- **Mail is a popup** (`mail.php`, `OVERRIDE_FORCED_NAV`): it doesn't touch the game's
+  allowed navs, so the REPL (`self.game`) and MCP (`_game`) keep the game page and restore
+  it on `:back` / `lotgd_mail("close")` with no request. The popup template has no sidebar,
+  so `td.headrow` *is* the content cell (parser checks for `td[width=120]` first). Mail links
+  are plain `<a>` (inline `#n` navs); the header's "Ye Olde Mail: N new, M old" link is
+  `page.mail`. The inbox's delete form has one `msg[]` checkbox per row: values can be lists.
+- **Gear levels** aren't in the sidebar (names only). `read_gear` pulls name → level from
+  shop tables whose `tr.trhead` has Name + Damage/Defense; `Client` caches them per host in
+  `~/.cache/lotgdcli/gear-<host>.json`.
 - Server source isn't viewable on the site; upstream is github.com/NB-Core/lotgd.
 
 ## Testing

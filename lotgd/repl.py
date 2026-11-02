@@ -16,10 +16,13 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
+from .colors import gear_style
+
 HELP = """\
   <key>      follow the nav with that hotkey (no Enter needed)
   #<n>       follow nav or in-text link number n (e.g. shop items)
   :f[<n>]    fill and submit form n (default 1)
+  :mail      open your mail (Ye Olde Mail); :back returns to the game
   :r         reload the current page
   :motd      show the message of the day
   :raw       save the current page's HTML to a temp file
@@ -37,6 +40,7 @@ class Repl:
         self.con = Console(highlight=False)
         self.prev = None  # the page before the current one, for "that key was on the last page" hints
         self.notes = []  # messages to print under the next page, since show() clears the screen
+        self.game = None  # the game page to go back to while the mail popup is open
 
     # ---- rendering -------------------------------------------------------
     def show(self, page):
@@ -47,6 +51,9 @@ class Repl:
         con.print()
         self.show_navs(page)
         self.show_stats(page)
+        if self.game is not None:
+            self.con.rule(style="green")
+            self.con.print(Text("✉ mail · #n follows a link · :back returns to the game", style="dim cyan"))
         for note in self.notes:
             con.print(note)
         self.notes = []
@@ -83,7 +90,17 @@ class Repl:
         for label, value in pairs:
             if len(value) > 40:  # buff lists etc. would swamp the bar
                 value = value[:39] + "…"
-            parts.append(Text.assemble((label + " ", "dim"), (value, "bright_white")))
+            kind = {"weapon": "weapon", "armor": "armor", "armour": "armor"}.get(label.lower())
+            lvl = self.c.gear_level(kind, value) if kind else None
+            if lvl:
+                parts.append(Text.assemble((label + " ", "dim"), (value, gear_style(*lvl)),
+                                           (f" {lvl[0]}/{lvl[1]}", "dim")))
+            else:
+                parts.append(Text.assemble((label + " ", "dim"), (value, "bright_white")))
+        if page.mail:
+            new, old = page.mail
+            parts.append(Text.assemble(("✉ ", "bold bright_yellow"), (f"{new} new mail", "bold bright_yellow"),
+                                       (" (:mail)", "dim")) if new else Text(f"✉ {old} mail", style="dim"))
         self.con.rule(style="green")
         self.con.print(Text(" · ").join(parts))
 
@@ -212,7 +229,20 @@ class Repl:
                 ans = self.con.input(f"[bold green]{escape(prompt)}[/] [dim](y/n, enter keeps {'y' if f.value else 'n'})[/] ").strip().lower()
                 on = (ans == "y") if ans else bool(f.value)
                 if on:
-                    values[f.name] = f.options[0][0]
+                    v = f.options[0][0]
+                    if f.name.endswith("[]"):  # one box per row, all named msg[] (mail inbox)
+                        values.setdefault(f.name, []).append(v)
+                    else:
+                        values[f.name] = v
+            elif f.kind == "textarea":
+                # one line of input; `n is LoTGD's line break. A prefilled textarea
+                # (a reply's quoted original) keeps its text under what you type.
+                quoted = f.value.strip()
+                hint = " (`n = new line" + (", the quoted message stays below)" if quoted else ")")
+                self.con.print(Text(hint, style="dim"))
+                ans = prefilled_input(field_prompt(prompt), first or "")
+                first = None
+                values[f.name] = ans.replace("`n", "\n") + f.value if ans else f.value
             elif f.kind == "password":
                 values[f.name] = getpass.getpass(field_prompt(prompt).replace("\001", "").replace("\002", ""))
             else:
@@ -300,7 +330,18 @@ class Repl:
                         fh.write(page.html)
                     self.con.print(f"saved {path}")
                 elif cmd == ":login":
+                    self.game = None
                     new = self.login()
+                elif cmd in (":mail", ":m") and self.game is None:
+                    if not self.c.logged_in:
+                        self.con.print("[yellow]Log in first (:login) to read your mail.[/]")
+                    else:
+                        new = self.c.mail()
+                        self.game = page
+                elif cmd in (":back", ":b", ":mail", ":m") and self.game is not None:
+                    # back to the game page as it was: no request, and its links still work
+                    new, self.game = self.game, None
+                    self.c.page = new
                 elif cmd == ":f" or (cmd.startswith(":f") and cmd[2:].strip().isdigit()):
                     new = self.fill(int(cmd[2:]) if cmd[2:].strip() else 1)  # ":f2" or ":f 2"
                 else:
@@ -308,6 +349,8 @@ class Repl:
             except Exception as e:  # network hiccups shouldn't kill the session
                 self.con.print(f"[red]error: {e}[/]")
             if new is not None:
+                if self.game is not None and self.c.is_logged_out(new):
+                    self.game = None  # mail redirected to the login page: the session timed out
                 if urlparse(new.url).path.endswith("badnav.php") and cmd != ":login":
                     self.con.print("[bold yellow]The server didn't accept that action (it re-showed an earlier "
                                    "page). Nothing new happened: no gold spent, no turn used.[/]")
@@ -334,6 +377,8 @@ def getch():
 def field_prompt(label, default=""):
     """A readline-safe input() prompt styled like the "> " command prompt.
     \001/\002 tell readline the colour codes take no width, so editing keeps its place."""
+    if len(default) > 30:
+        default = default[:29] + "…"
     hint = f" \001\x1b[2m\002[{default}]\001\x1b[0m\002" if default else ""
     return f"\001\x1b[1;32m\002{label}\001\x1b[0m\002{hint} > "
 

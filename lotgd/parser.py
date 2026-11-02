@@ -51,6 +51,8 @@ class Page:
     stats: list  # [(label, value)]; value "" marks a section header
     html: str
     bars: dict = field(default_factory=dict)  # label -> (percent, color) from stat bars
+    mail: tuple = None  # (new, old) from the "Ye Olde Mail: N new, M old" link, if shown
+    gear: dict = field(default_factory=dict)  # shop table: {"weapon"|"armor": {name: level}}
 
 
 def _clean(s):
@@ -243,8 +245,10 @@ def parse_forms(root):
                     if el.has_attr("checked"):
                         fld.value = el.get("value", "on")
                 elif kind == "checkbox":
+                    tr = el.find_parent("tr")
+                    row = _clean(tr.get_text(" ")) if tr and tr.find_parent("form") is f else ""
                     fields.append(Field(name, "checkbox", el.get("value", "on") if el.has_attr("checked") else "",
-                                        [(el.get("value", "on"), "on")]))
+                                        [(el.get("value", "on"), "on")], row[:60]))
                 else:
                     fields.append(Field(name, kind if kind in ("hidden", "password") else "text", el.get("value", "")))
             elif el.name == "select" and name:
@@ -355,6 +359,36 @@ def annotate_shop(main, stats, soup, url=""):
             tds[-1].append(note)
 
 
+GEAR_COLUMNS = {"damage": "weapon", "defense": "armor"}
+
+
+def read_gear(main):
+    """The weapon/armor shop tables list each item's level (Damage or Defense,
+    1..15 per dragon kill tier). Return {"weapon"|"armor": {name: level}}."""
+    gear = {}
+    for head in main.select("tr.trhead"):
+        cols = [_clean(td.get_text()).lower() for td in head.find_all("td", recursive=False)]
+        kind = next((GEAR_COLUMNS[c] for c in cols if c in GEAR_COLUMNS), None)
+        if not kind or "name" not in cols:
+            continue
+        ni, vi = cols.index("name"), next(i for i, c in enumerate(cols) if c in GEAR_COLUMNS)
+        for tr in head.find_next_siblings("tr"):
+            tds = tr.find_all("td", recursive=False)
+            if len(tds) != len(cols):
+                continue
+            name, level = _clean(tds[ni].get_text()), _num(tds[vi].get_text())
+            if name and level:
+                gear.setdefault(kind, {})[name] = level
+    return gear
+
+
+def read_mail_count(soup):
+    """(new, old) from the header's "Ye Olde Mail: N new, M old" popup link."""
+    a = soup.find("a", href=re.compile(r"^mail\.php"))
+    m = re.search(r"(\d+)\D+?(\d+)", a.get_text(" ")) if a else None
+    return (int(m[1]), int(m[2])) if m else None
+
+
 def parse(html, url=""):
     # LoTGD keeps color <span>s open across raw table output (e.g. fight health
     # bars), so the HTML is misnested. html5lib recovers the way browsers do;
@@ -363,7 +397,13 @@ def parse(html, url=""):
     title = _clean(soup.title.get_text()) if soup.title else ""
 
     head = soup.select_one("td.headrow")
-    main = head.find("td", attrs={"width": "100%"}) if head else None
+    side = head.find("td", attrs={"width": "120"}) if head else None
+    if side:
+        main = head.find("td", attrs={"width": "100%"})
+    else:
+        # popups (mail.php) have no sidebar: td.headrow is the content cell itself,
+        # and a td[width=100%] in it would be some table inside the content
+        main = head
     main = main or soup.body or soup
     for dbg in main.select("div.debug"):  # server-side PHP debug dump + its toggle button
         btn = dbg.find_previous_sibling("button")
@@ -373,7 +413,6 @@ def parse(html, url=""):
     for sel in main.find_all("select", attrs={"name": "template"}):
         sel.find_parent("form").decompose()  # skin picker; we pin our own skin
 
-    side = head.find("td", attrs={"width": "120"}) if head else None
     side_cell = side.select_one("td.nav") if side else None
     if side_cell:
         for f in side_cell.find_all("form"):
@@ -381,6 +420,7 @@ def parse(html, url=""):
 
     bars = {}
     stats = parse_stats(side_cell, bars)
+    gear = read_gear(main)  # before annotate_shop adds its notes to the cost column
     annotate_shop(main, stats, soup, url)
     navs = parse_navs(soup)
     body = render_text(main, navs)  # appends in-text links to navs
@@ -393,4 +433,6 @@ def parse(html, url=""):
         stats=stats,
         html=html,
         bars=bars,
+        mail=read_mail_count(soup),
+        gear=gear,
     )

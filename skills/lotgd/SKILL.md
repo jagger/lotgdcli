@@ -18,6 +18,9 @@ human would: one deliberate action at a time, and only options the page offers.
   entries and `[#n]` in-text links (shop items), or the exact label.
 - `lotgd_submit`: fill a form (bank amount, inn, naming). Fields you leave out keep their defaults.
 - `lotgd_reload`: refresh the page.
+- `lotgd_mail`: `"open"` the mailbox popup (then `lotgd_choose`/`lotgd_submit` on it),
+  `"close"` to go back to the game page. Stats show `Mail: N new` when there's unread mail,
+  and `Weapon`/`Armor` carry `(level n/15)` once the shop tables have been seen.
 
 Every result ends with `[requests this session: n/cap]`. If you hit the cap, stop and report.
 
@@ -26,7 +29,8 @@ Every result ends with `[requests this session: n/cap]`. If you hit the cap, sto
 - **Stick to the user's goal.** "Use my turns" means forest fights until turns run out
   or HP gets risky, not open-ended play. When the goal is done, stop and summarize.
 - **No social actions unless asked.** Don't post in village/inn chat (commentary forms),
-  send mail, or write bios. Those speak as the user to real people.
+  send mail, or write bios. Those speak as the user to real people. Reading mail
+  is fine when the user asks (it marks messages read); don't delete any unless asked.
 - **No PvP unless asked.** Don't attack other players.
 - **Spending:** buying the best affordable weapon/armor upgrade, healing, and banking
   are fine when they serve the goal. Ask before spending gems or anything you can't undo

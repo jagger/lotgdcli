@@ -53,3 +53,21 @@ def style_for(classes):
         if style:
             return style
     return None
+
+
+# MMO-style gear rarity by item level within the shop's range (1..15 per dragon
+# kill tier): gray, green, blue, orange, and teal for the top item.
+GEAR_TIERS = (
+    (4 / 15, "grey62"),
+    (8 / 15, "green3"),
+    (11 / 15, "dodger_blue1"),
+    (1.0, "dark_orange"),
+)
+GEAR_MAX = "bold light_sea_green"  # teal: the best item the shop sells
+
+
+def gear_style(level, top):
+    if level >= top:
+        return GEAR_MAX
+    frac = level / top
+    return next(style for limit, style in GEAR_TIERS if frac <= limit)

@@ -77,6 +77,13 @@ Each page shows three things, top to bottom:
    - **HP**: green, then yellow, then red as it drops.
    - **XP**: progress toward your next level. It turns blue and says
      **⚔ fight your master!** once you have enough to challenge your master.
+   - **Weapon / Armor**: colored by how good they are in the current shop tier,
+     MMO style: gray, green, blue, orange, and teal for the best item the shop
+     sells (level 15), with the level shown as `14/15`. The sidebar only gives
+     names, so the client learns levels from the weapon and armor shop tables:
+     visit MightyE's and Pegasus once (and again after a dragon kill) and the
+     colors appear. Learned levels are cached in `~/.cache/lotgdcli/`.
+   - **✉ mail**: shows `✉ 2 new mail (:mail)` in yellow when you have unread mail.
    - Your other stats: level, turns, gold, gems, buffs, ...
 
 ### Keys
@@ -95,6 +102,7 @@ Start with `:` or `#` to type a longer command, then press Enter:
 |---------------|------------------------------------------------------------|
 | `#3`          | Follow entry number 3: a menu entry without a hotkey, or a link in the page text |
 | `:f` / `:f2`  | Fill in and submit form 1 / form 2 (or just start typing for form 1) |
+| `:mail` / `:m` | Open Ye Olde Mail; `:back` (or `:mail` again) returns to the game |
 | `:r`          | Reload the current page                                    |
 | `:motd`       | Show the message of the day                                |
 | `:login`      | Log in again, e.g. after your session times out            |
@@ -126,6 +134,14 @@ don't get a number. Instead they show how much more gold you need, counting
 the gold you're carrying plus the trade-in for your current weapon or armor,
 as in `Golden Hilted Sword  12  6840 (need 814 more)`.
 
+**Mail:** `:mail` opens your mailbox (the website's mail popup). Messages, Inbox,
+Write, Reply and Forward are `[#n]` links. To write, open Write (or Reply), and
+fill the form with `:f1`: you're asked for each field, then which button
+(Send / Send and Close). Type `` `n `` in the body for a new line; on a reply,
+the quoted original stays below what you type. To delete, use the Delete button
+on a message, or `:f1` on the inbox and answer `y` for each message to delete.
+`:back` returns to the game page you left, without a request, and its menu still works.
+
 **Logging out:** as on the website, use the in-game quit option (for example
 "Quit to the fields") before `:q`, so your character is safely logged out.
 
@@ -152,6 +168,7 @@ Then ask Claude something like "play my LoTGD turns for today".
 | `lotgd_look`    | Show the current page (no request)                           |
 | `lotgd_choose`  | Follow a hotkey (`F`), `#n` entry or in-text link, or a label |
 | `lotgd_submit`  | Fill in and submit a form (field name → value)               |
+| `lotgd_mail`    | `"open"` the mailbox, `"close"` to return to the game         |
 | `lotgd_reload`  | Reload the current page                                      |
 
 The password is only read from the credentials file or `LOTGD_USER` /

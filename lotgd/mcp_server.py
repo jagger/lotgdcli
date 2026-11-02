@@ -35,6 +35,7 @@ _lock = threading.Lock()
 _client = None
 _requests = 0
 _last = 0.0
+_game = None  # the game page to go back to while the mail popup is open
 
 
 def _get_client():
@@ -108,7 +109,15 @@ def render(page, note="", check_badnav=True):
         if bar and re.match(r"exp", label, re.I):
             pct, color = bar
             value += f" ({pct}% to next level" + (", READY to fight your master" if color == "blue" or pct >= 100 else "") + ")"
+        kind = {"weapon": "weapon", "armor": "armor"}.get(label.lower())
+        lvl = c.gear_level(kind, value) if kind else None
+        if lvl:
+            value += f" (level {lvl[0]}/{lvl[1]}" + (", best in shop" if lvl[0] >= lvl[1] else "") + ")"
         stats.append(f"{label}: {value}")
+    if page.mail:
+        stats.append(f"Mail: {page.mail[0]} new, {page.mail[1]} old")
+    if _game is not None:
+        out.append("\n(In the mail popup. lotgd_mail('close') returns to the game page.)")
     if stats:
         out += ["", "## Stats", "; ".join(stats)]
     if c.logged_in and c.is_logged_out(page):
@@ -226,6 +235,31 @@ def lotgd_submit(form: int = 1, values: dict[str, str | int | float | bool] | No
             if not btn:
                 return f"No button {button!r}; buttons are {[b[2] for b in f.buttons]}. Nothing was sent."
         return render(_request(c.submit, f, data, btn), f"submitted form {form}")
+
+
+@mcp.tool()
+def lotgd_mail(action: str = "open") -> str:
+    """Open or close Ye Olde Mail (the in-game mailbox popup).
+
+    action: "open" shows the inbox; then use lotgd_choose for the [#n] links
+        (read a message, Write, Reply) and lotgd_submit for its forms.
+        "close" goes back to the game page you were on (no request needed;
+        its menu still works).
+    """
+    global _game
+    with _lock:
+        c = _get_client()
+        if action == "close":
+            if _game is None:
+                return "Mail isn't open.\n\n" + render(c.page or _request(c.home))
+            c.page, _game = _game, None
+            return render(c.page, "closed mail, back in the game", check_badnav=False)
+        if not c.logged_in:
+            return "Not logged in; call lotgd_login first."
+        game = _game if _game is not None else c.page
+        page = _request(c.mail)
+        _game = None if c.is_logged_out(page) else game
+        return render(page, "opened mail")
 
 
 @mcp.tool()
