@@ -126,10 +126,24 @@ class Client:
             return self._load(self.s.post(target, data=data, timeout=30))
         return self._load(self.s.get(target, params=data, timeout=30))
 
-    def login(self, name, password):
+    def login(self, name, password, progress=None):
+        """Log in. progress(msg), if given, is called before each step and on each
+        redirect the server answers with, so a UI can show where a slow login is."""
+        say = progress or (lambda msg: None)
+        host = urlparse(self.base).hostname
         if not self.page:
+            say(f"Connecting to {host}...")
             self.home()
-        page = self._load(self.s.post(self.base + "login.php",
+
+        def hop(resp, *args, **kwargs):
+            if resp.is_redirect:
+                nxt = Path(urlparse(resp.headers.get("location", "")).path).name or "home page"
+                say(f"Server answered {resp.status_code}, loading {nxt}...")
+            else:
+                say("Reading the page...")
+
+        say(f"Sending login for {name}...")
+        page = self._load(self.s.post(self.base + "login.php", hooks={"response": hop},
                                       data={"name": name, "password": password}, timeout=30))
         self.logged_in = not self.is_logged_out(page)
         return page

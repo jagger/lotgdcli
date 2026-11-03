@@ -5,6 +5,11 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Login shows progress:** a spinner says what's happening (connecting, sending the login,
+  each redirect the server answers with), and the next page notes how long the login took.
+  Failed logins say so with the time, too.
+
 ## [0.2.0] - 2026-11-03
 
 ### Added

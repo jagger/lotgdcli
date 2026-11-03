@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import termios
+import time
 import tempfile
 import tty
 from itertools import zip_longest
@@ -263,10 +264,16 @@ class Repl:
             self.user = self.con.input("Character name: ").strip()
         if not self.password:
             self.password = getpass.getpass("Password: ")
-        page = self.c.login(self.user, self.password)
+        start = time.monotonic()
+        with self.con.status("Logging in...") as status:
+            page = self.c.login(self.user, self.password,
+                                progress=lambda msg: status.update(escape(msg)))
+        took = time.monotonic() - start
         if not self.c.logged_in:
             self.password = None
-            self.notes.append("[bold red]Login failed.[/]")
+            self.notes.append(f"[bold red]Login failed[/] [dim]({took:.1f}s). Check the name and password.[/]")
+        else:
+            self.notes.append(f"[dim]Logged in as {escape(self.user)} ({took:.1f}s).[/]")
         return page
 
     # ---- input -----------------------------------------------------------
