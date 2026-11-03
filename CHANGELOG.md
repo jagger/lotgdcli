@@ -5,6 +5,12 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **MCP: no false "server rejected that action" warning** when a choice isn't on the page or
+  `lotgd_look` re-shows a badnav page. Nothing was sent, so there's nothing to warn about.
+- **MCP: logging out on purpose** ("Quit to the fields", the inn's room) now says "Logged out"
+  instead of "probably a session timeout".
+
 ## [0.3.0] - 2026-11-03
 
 ### Breaking

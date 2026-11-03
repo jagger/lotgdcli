@@ -61,8 +61,18 @@ def _request(fn, *args):
         _last = time.monotonic()
 
 
-def render(page, note="", check_badnav=True):
-    """A page as plain text for the model: body, menu, forms, stats."""
+def _is_logout(nav):
+    """True for navs that log out on purpose: "Quit to the fields", the inn's room."""
+    return "op=logout" in nav.href or bool(re.search(r"\b(quit|log ?out|go to room)\b", nav.label, re.I))
+
+
+def render(page, note="", check_badnav=True, logout=False):
+    """A page as plain text for the model: body, menu, forms, stats.
+
+    check_badnav: warn if this page is the server's badnav.php replay. Pass False
+        when re-showing a page without a request, since nothing was rejected.
+    logout: the request was a deliberate logout, not a session timeout.
+    """
     c = _get_client()
     out = [f"# {page.title or 'LoTGD'}"]
     if note:
@@ -122,7 +132,10 @@ def render(page, note="", check_badnav=True):
         out += ["", "## Stats", "; ".join(stats)]
     if c.logged_in and c.is_logged_out(page):
         c.logged_in = False
-        out.append("\n(You've been logged out, probably a session timeout. Call lotgd_login.)")
+        if logout:
+            out.append("\n(Logged out. Call lotgd_login to play again.)")
+        else:
+            out.append("\n(You've been logged out, probably a session timeout. Call lotgd_login.)")
     out.append(f"\n[requests this session: {_requests}/{MAX_REQUESTS}]")
     return "\n".join(out)
 
@@ -151,7 +164,9 @@ def lotgd_look() -> str:
     logged-out home page if nothing is loaded yet)."""
     with _lock:
         c = _get_client()
-        return render(c.page or _request(c.home))
+        if c.page:
+            return render(c.page, check_badnav=False)
+        return render(_request(c.home))
 
 
 @mcp.tool()
@@ -183,8 +198,8 @@ def lotgd_choose(choice: str) -> str:
                 n = int(m[1])
                 nav = page.navs[n - 1] if 1 <= n <= len(page.navs) else None
         if not nav:
-            return f"No entry {choice!r} on this page; nothing was sent.\n\n" + render(page)
-        return render(_request(c.get, nav.href), f"chose: {nav.label}")
+            return f"No entry {choice!r} on this page; nothing was sent.\n\n" + render(page, check_badnav=False)
+        return render(_request(c.get, nav.href), f"chose: {nav.label}", logout=_is_logout(nav))
 
 
 @mcp.tool()
@@ -251,7 +266,9 @@ def lotgd_mail(action: str = "open") -> str:
         c = _get_client()
         if action == "close":
             if _game is None:
-                return "Mail isn't open.\n\n" + render(c.page or _request(c.home))
+                if c.page:
+                    return "Mail isn't open.\n\n" + render(c.page, check_badnav=False)
+                return "Mail isn't open.\n\n" + render(_request(c.home))
             c.page, _game = _game, None
             return render(c.page, "closed mail, back in the game", check_badnav=False)
         if not c.logged_in:
