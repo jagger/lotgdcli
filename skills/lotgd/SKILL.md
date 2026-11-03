@@ -11,7 +11,7 @@ human would: one deliberate action at a time, and only options the page offers.
 ## Tools
 
 - `lotgd_login`: log in with the configured character. Credentials come from
-  `~/.config/lotgdcli/credentials`, never from you. If it says none are configured,
+  `~/.lotgdcli/credentials`, never from you. If it says none are configured,
   tell the user and stop.
 - `lotgd_look`: show the current page again (free, no request).
 - `lotgd_choose`: follow a menu entry with its hotkey (`"F"`), `"#n"` for numbered

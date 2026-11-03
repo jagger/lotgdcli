@@ -18,6 +18,7 @@ from rich.table import Table
 from rich.text import Text
 
 from .colors import gear_style
+from .paths import RAW_DIR
 
 HELP = """\
   <key>      follow the nav with that hotkey (no Enter needed)
@@ -26,7 +27,7 @@ HELP = """\
   :mail      open your mail (Ye Olde Mail); :back returns to the game
   :r         reload the current page
   :motd      show the message of the day
-  :raw       save the current page's HTML to a temp file
+  :raw       save the current page's HTML under ~/.lotgdcli/cache/raw
   :login     log in again (e.g. after a timeout)
   :q         quit
   ?          this help"""
@@ -332,7 +333,8 @@ class Repl:
                     from .parser import parse
                     self.con.print(parse(motd.text).body)
                 elif cmd == ":raw":
-                    fd, path = tempfile.mkstemp(prefix="lotgd-", suffix=".html")
+                    RAW_DIR.mkdir(parents=True, exist_ok=True)
+                    fd, path = tempfile.mkstemp(prefix="lotgd-", suffix=".html", dir=RAW_DIR)
                     with os.fdopen(fd, "w", encoding="utf-8") as fh:
                         fh.write(page.html)
                     self.con.print(f"saved {path}")

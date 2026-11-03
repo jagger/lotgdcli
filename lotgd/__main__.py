@@ -1,9 +1,11 @@
 import argparse
+import getpass
 import os
 import sys
 
 from .client import DEFAULT_URL, Client
-from .credentials import load_credentials
+from .credentials import load_credentials, save_credentials
+from .paths import DEBUG_DIR
 from .repl import Repl
 
 
@@ -13,9 +15,23 @@ def main():
     ap.add_argument("--user", "-u", help="character name to log in as (omit to browse logged out)")
     ap.add_argument("--login", "-l", action="store_true",
                     help="log in as LOTGD_USER or the credentials file's user when -u isn't given")
-    ap.add_argument("--debug", metavar="DIR", nargs="?", const="debug",
-                    help="log requests and save every page's HTML to DIR (default ./debug)")
+    ap.add_argument("--debug", metavar="DIR", nargs="?", const=str(DEBUG_DIR),
+                    help=f"log requests and save every page's HTML to DIR (default {DEBUG_DIR})")
+    ap.add_argument("--save-login", action="store_true",
+                    help="ask for a character name and password and save them (owner-only) in "
+                         "~/.lotgdcli/credentials for -l and the MCP server")
     args = ap.parse_args()
+    if args.save_login:
+        try:
+            user = args.user or input("Character name: ").strip()
+            password = getpass.getpass("Password (not shown): ")
+        except (EOFError, KeyboardInterrupt):
+            print()
+            sys.exit(1)
+        if not (user and password):
+            sys.exit("Nothing saved: need both a name and a password.")
+        print(f"Saved to {save_credentials(user, password)} (readable only by you).")
+        sys.exit(0)
     if args.user or args.login:
         user, password = load_credentials(args.user)
         login = True

@@ -133,8 +133,8 @@ def lotgd_login() -> str:
     or the credentials file). Returns the first in-game page."""
     user, password = load_credentials()
     if not (user and password):
-        return (f"No credentials configured. Ask the user to put 'user=Name' and 'password=...' "
-                f"lines in {CRED_FILE} (chmod 600), or set LOTGD_USER/LOTGD_PASSWORD.")
+        return (f"No credentials configured. Ask the user to run `lotgd --save-login` (saves "
+                f"{CRED_FILE}, owner-only), or set LOTGD_USER/LOTGD_PASSWORD.")
     with _lock:
         c = _get_client()
         if not c.page:

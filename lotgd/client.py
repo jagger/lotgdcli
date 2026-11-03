@@ -10,10 +10,10 @@ from urllib.parse import urljoin, urlparse
 import requests
 
 from .parser import parse
+from .paths import CACHE_DIR, OLD_CACHE_DIR
 
 DEFAULT_URL = "https://lotgd.popetoad.com/"
 SKIN = "legacy:jade.htm"  # parser is written against this skin's layout
-CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or "~/.cache").expanduser() / "lotgdcli"
 
 
 class _Session(requests.Session):
@@ -51,11 +51,26 @@ class Client:
         self.logged_in = False
         # gear levels learned from the weapon/armor shop tables, kept per server
         # since the sidebar shows only names: {"weapon"|"armor": {name: level}}
-        self.gear_file = CACHE_DIR / f"gear-{urlparse(self.base).hostname}.json"
+        self.gear_file = CACHE_DIR / f"gear-{self.gear_name()}"
+        self.gear = {}
+        for f in (self.gear_file, OLD_CACHE_DIR / self.gear_file.name):
+            try:
+                self.gear = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if f != self.gear_file:  # migrate the old ~/.cache copy
+                self.save_gear()
+            break
+
+    def gear_name(self):
+        return f"{urlparse(self.base).hostname}.json"
+
+    def save_gear(self):
         try:
-            self.gear = json.loads(self.gear_file.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            self.gear = {}
+            self.gear_file.parent.mkdir(parents=True, exist_ok=True)
+            self.gear_file.write_text(json.dumps(self.gear, indent=1, sort_keys=True), encoding="utf-8")
+        except OSError:
+            pass  # coloring is a nicety; never break play over it
 
     def learn_gear(self, page):
         changed = False
@@ -65,11 +80,7 @@ class Client:
                 known.update(items)
                 changed = True
         if changed:
-            try:
-                self.gear_file.parent.mkdir(parents=True, exist_ok=True)
-                self.gear_file.write_text(json.dumps(self.gear, indent=1, sort_keys=True), encoding="utf-8")
-            except OSError:
-                pass  # coloring is a nicety; never break play over it
+            self.save_gear()
 
     def gear_level(self, kind, name):
         """(level, top) for an equipped item, or None if no shop table named it yet."""

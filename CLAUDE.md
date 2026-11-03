@@ -26,10 +26,12 @@ To release: move Unreleased into a new `## [X.Y.Z] - date` section, bump `versio
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/lotgd -u Character          # or: .venv/bin/python -m lotgd
-.venv/bin/lotgd -u Character --debug  # logs requests + saves pages to ./debug/
+.venv/bin/lotgd -u Character --debug  # logs requests + saves pages to ~/.lotgdcli/cache/debug/
 ```
 
-`debug/` and `.venv/` are gitignored. Debug pages contain the user's character data,
+Everything the client saves lives under `~/.lotgdcli/cache/` (`lotgd/paths.py`;
+`LOTGD_HOME` overrides `~/.lotgdcli`): gear levels, `:raw` dumps, and `--debug` output in
+`cache/debug/`. Older checkouts saved debug pages to `./debug/`; `debug/` and `.venv/` are gitignored. Debug pages contain the user's character data,
 so never commit them. They're the best input for parser bugs: read
 `debug/requests.log` and the numbered HTML files.
 
@@ -41,11 +43,12 @@ so never commit them. They're the best input for parser bugs: read
 - `lotgd/colors.py`: LoTGD `col*` CSS classes → rich styles, plus `gear_style` (MMO rarity
   colors for weapon/armor level: gray/green/blue/orange, teal = shop's top item) (matched case-insensitively)
 - `lotgd/credentials.py`: `load_credentials()` shared by `lotgd --login`/`-u` and lotgd-mcp:
-  explicit value > `LOTGD_USER`/`LOTGD_PASSWORD` > `~/.config/lotgdcli/credentials`. The
+  explicit value > `LOTGD_USER`/`LOTGD_PASSWORD` > `~/.lotgdcli/credentials` (dir 700, file 600, written
+  by `lotgd --save-login`, tightened on read, migrated from `~/.config/lotgdcli/`). The
   file's password is only used for the file's own user. Plain `lotgd` stays logged out.
 - `lotgd/mcp_server.py`: `lotgd-mcp` MCP server (extra `[mcp]`, mcp 2.x `MCPServer`, not v1
   `FastMCP`). Holds one Client per process. Credentials come only from env or
-  `~/.config/lotgdcli/credentials`, never tool args. Every server hit goes through
+  `~/.lotgdcli/credentials`, never tool args. Every server hit goes through
   `_request` (rate limit + per-session cap). Keep it that way. `render()` flags
   badnav.php replays so the agent doesn't think the action happened again.
 - `skills/lotgd/SKILL.md`: agent play guide + ground rules (no chat/mail/PvP unless asked).
@@ -98,7 +101,7 @@ so never commit them. They're the best input for parser bugs: read
   `page.mail`. The inbox's delete form has one `msg[]` checkbox per row: values can be lists.
 - **Gear levels** aren't in the sidebar (names only). `read_gear` pulls name → level from
   shop tables whose `tr.trhead` has Name + Damage/Defense; `Client` caches them per host in
-  `~/.cache/lotgdcli/gear-<host>.json`.
+  `~/.lotgdcli/cache/gear-<host>.json` (an old `~/.cache/lotgdcli` copy is migrated on load).
 - Server source isn't viewable on the site; upstream is github.com/NB-Core/lotgd.
 
 ## Testing

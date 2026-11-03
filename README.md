@@ -58,12 +58,19 @@ lotgd -u Name --debug                  # see Troubleshooting
 ```
 
 `--login` (`-l`) logs in as `LOTGD_USER` or the `user=` line of
-`~/.config/lotgdcli/credentials` (the same file the MCP server uses, see
+`~/.lotgdcli/credentials` (the same file the MCP server uses, see
 [Agentic play](#agentic-play-mcp-server)). With `-u`, the password comes from
 `LOTGD_PASSWORD`, then from the file if the file is for that character, else
 you're asked. Plain `lotgd` never logs in on its own.
 
-lotgd never writes your password to disk; it only sends it to the server.
+lotgd only writes your password to disk if you ask it to: `lotgd --save-login`
+prompts for your character name and password (not echoed, so it stays out of
+your shell history) and saves them to `~/.lotgdcli/credentials`. That folder is
+owner-only (700) and the file is 600. If something loosens the file's permissions,
+the client tightens them back on the next read and warns. A file left at the old
+`~/.config/lotgdcli/credentials` is moved there automatically. The password is
+stored as plain text, protected by those permissions, the same way `~/.netrc` or
+an SSH key without a passphrase is.
 
 ### The screen
 
@@ -82,7 +89,8 @@ Each page shows three things, top to bottom:
      sells (level 15), with the level shown as `14/15`. The sidebar only gives
      names, so the client learns levels from the weapon and armor shop tables:
      visit MightyE's and Pegasus once (and again after a dragon kill) and the
-     colors appear. Learned levels are cached in `~/.cache/lotgdcli/`.
+     colors appear. Learned levels are saved in `~/.lotgdcli/cache/`, so
+     you only need to see each shop's list once per machine.
    - **✉ mail**: shows `✉ 2 new mail (:mail)` in yellow when you have unread mail.
    - Your other stats: level, turns, gold, gems, buffs, ...
 
@@ -106,7 +114,7 @@ Start with `:` or `#` to type a longer command, then press Enter:
 | `:r`          | Reload the current page                                    |
 | `:motd`       | Show the message of the day                                |
 | `:login`      | Log in again, e.g. after your session times out            |
-| `:raw`        | Save the current page's HTML to a temp file                |
+| `:raw`        | Save the current page's HTML under `~/.lotgdcli/cache/raw/` |
 | `:q`          | Quit                                                       |
 
 **Forms:** on pages with a text box (bank, inn, village chat, naming things)
@@ -153,9 +161,7 @@ client. It needs Python 3.10+.
 
 ```sh
 .venv/bin/pip install -e '.[mcp]'
-mkdir -p ~/.config/lotgdcli
-printf 'user=YourCharacter\npassword=secret\n' > ~/.config/lotgdcli/credentials
-chmod 600 ~/.config/lotgdcli/credentials
+.venv/bin/lotgd --save-login    # asks for name + password, saves ~/.lotgdcli/credentials (600)
 claude mcp add --scope user lotgd -- "$PWD/.venv/bin/lotgd-mcp"
 ln -s "$PWD/skills/lotgd" ~/.claude/skills/lotgd   # optional: play strategy + ground rules
 ```
@@ -184,7 +190,7 @@ seconds (default 1.5) between requests and stops after `LOTGD_MAX_REQUESTS`
   the server's HTML and prints the file path, so you can compare it with what the
   browser shows, or attach it to an issue.
 - **Something breaks over several steps:** run with `--debug` (or `--debug DIR`).
-  Every request, redirect and saved page goes into `./debug/`, along with a
+  Every request, redirect and saved page goes into `~/.lotgdcli/cache/debug/`, along with a
   `requests.log` of what the parser found on each page. Form data (and your
   password) are not logged, but the pages contain your character's info, so
   check them before sharing.
