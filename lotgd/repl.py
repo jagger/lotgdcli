@@ -64,14 +64,14 @@ class Repl:
         never prints below the prompt and scrolls the top of the screen away."""
         self.notes.append(markup)
 
-    def show(self, page):
+    def show(self, page, reserve=0):
         con = self.con
         if page is not self.shown:
             self.scroll = 0  # a new page starts at its top
             self.shown = page
         con.clear()  # each page starts at the top, so the menu doesn't jump around (no-op when piped)
         if con.is_terminal and con.width >= PANE_MIN_WIDTH:
-            self.show_panes(page)
+            self.show_panes(page, reserve)
             self.notes = []
             return
         con.rule(Text(page.title or "LoTGD", style="bold"), style="green")
@@ -103,13 +103,14 @@ class Repl:
             return [Text.assemble(first, " " * (width - first.cell_len - right.cell_len), right)] + left[1:]
         return left + [Text.assemble(" " * max(0, width - right.cell_len), right)]
 
-    def show_panes(self, page):
+    def show_panes(self, page, reserve=0):
         """Menu on the left, page text in the middle, stats on the right, and a
         command bar at the bottom. The frame is exactly one screen tall, so the
         prompt lands on the last row and nothing scrolls off the top: long page
-        text scrolls inside its pane instead (PgUp/PgDn, space)."""
+        text scrolls inside its pane instead (PgUp/PgDn, space). `reserve` leaves
+        that many more rows free below it for a form's prompts."""
         con = self.con
-        width, height = con.width, con.height
+        width, height = con.width, con.height - reserve
         stats = stat_lines(page, self.c.gear_level, STAT_WIDTH)
         self.more = ""
         bar = self.bar_lines(page, width - 4)
@@ -280,9 +281,10 @@ class Repl:
 
     def _fill(self, form, first):
         values = {}
-        if self.con.is_terminal:
-            # the field prompts take over the "> " line the key or :f was typed on
-            self.con.file.write("\x1b[1A\r\x1b[2K")
+        if self.con.is_terminal and self.shown is not None:
+            # redraw the page shorter so the prompts fit under it without
+            # scrolling the top of the frame off the screen
+            self.show(self.shown, reserve=prompt_rows(form))
         if not any(f.kind != "hidden" for f in form.fields):
             # a bare button (e.g. "give alms"): pressing it can cost gold, so ask
             label = form.buttons[0][2]
@@ -498,6 +500,20 @@ def prefilled_input(prompt, text=""):
         return input(prompt)
     finally:
         readline.set_startup_hook()
+
+
+def prompt_rows(form):
+    """Screen rows _fill's prompts take for this form, beyond the usual prompt row."""
+    rows = 0
+    for f in form.fields:
+        if f.kind == "hidden":
+            continue
+        rows += 1 + (len(f.options) if f.kind in ("select", "radio") else 0) + (f.kind == "textarea")
+    if not any(f.kind != "hidden" for f in form.fields):
+        rows += 1  # "Press [Give alms]? [y/N]"
+    if len(form.buttons) > 1:
+        rows += len(form.buttons) + 1
+    return max(0, rows - 1)
 
 
 def fit(t, w):

@@ -22,6 +22,8 @@ versions follow [SemVer](https://semver.org/).
   "cancelled") used to print under the prompt, pushing the top of the screen off. They now
   show in the command bar and the screen is redrawn in place. Pages taller than the screen
   no longer push the title off either.
+- **Typing into a form no longer scrolls the screen either:** the page is redrawn just short
+  enough that the form's prompts fit underneath it.
 
 ## [0.4.0] - 2026-11-03
 
