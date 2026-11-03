@@ -14,6 +14,13 @@ This project is worked on from multiple machines. https://github.com/jagger/lotg
 - If local and remote have diverged, stop and ask the user. Never force-push.
 - This file is part of the repo too. Keep it updated and pushed.
 
+## Changelog and releases
+
+User-facing changes go under `## [Unreleased]` in `CHANGELOG.md` in the same commit.
+To release: move Unreleased into a new `## [X.Y.Z] - date` section, bump `version` in
+`pyproject.toml`, update the compare links at the bottom, commit, then
+`git tag -a vX.Y.Z` and `git push --follow-tags`.
+
 ## Setup and run
 
 ```sh

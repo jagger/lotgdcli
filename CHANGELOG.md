@@ -1,0 +1,60 @@
+# Changelog
+
+All notable changes to lotgdcli. Format follows [Keep a Changelog](https://keepachangelog.com/),
+versions follow [SemVer](https://semver.org/).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-11-03
+
+### Added
+- **MCP server and agent skill** (`lotgd-mcp`, extra `[mcp]`): login/look/choose/submit/reload
+  tools for agentic play, rate-limited and capped per session. Credentials come from env or
+  the credentials file, never from tool args. `skills/lotgd/SKILL.md` covers the game loop and
+  ground rules for a shared server.
+- **Mail:** `:mail` opens Ye Olde Mail, and `:back` returns to the game page without a request.
+  The status bar shows the unread count. MCP: `lotgd_mail(open|close)`.
+- **Gear colors:** the Weapon and Armor in the status bar are colored by level
+  (gray/green/blue/orange, teal = the shop's best). Levels are learned from shop tables and
+  cached per server.
+- **Type straight into forms:** a key that isn't a menu hotkey starts filling the page's text
+  form, so a bank deposit is `D`, `500`, Enter.
+- **Shop links:** weapon and armor items in the page text are numbered `[#n]` and can be bought
+  with `#n`. Items you can't afford show `(need N more)`, counting your trade-in.
+- `lotgd --login` logs in with `LOTGD_USER`/`LOTGD_PASSWORD` or
+  `~/.config/lotgdcli/credentials`. `-u` uses the file's password for that character.
+- Form buttons show their real text instead of a generic "Submit".
+- Typing `` `n `` in a textarea inserts a newline. Replies keep the quoted original below.
+
+### Changed
+- The screen clears between pages, so the UI no longer jumps around. Keys that don't change
+  the page leave their message visible.
+- Form prompts replace the `> ` line instead of printing below it.
+- `:f 2` works with a space.
+
+### Fixed
+- **Stray keys can't spend gold:** button-only forms (like Beggar's Lane alms) need
+  `:f<n>` plus a y/N confirm. Keys typed while a page loads are discarded, and a key from the
+  previous page gets "the page has moved on".
+- badnav.php replays are flagged in the REPL and MCP, so a replayed "you hand the beggar
+  31 gold" isn't mistaken for a second payment.
+- The session stays on https after the server's post-login redirect to http://.
+- Hitpoints with thousands separators ("1,250 / 1,500") parse.
+- Color classes match case-insensitively.
+- Shops with no trade-in line still get shortfall notes.
+- The server's PHP debug dump is stripped from page text.
+- Ctrl-C at a form prompt cancels the form instead of quitting.
+- Startup connection errors print a message instead of a traceback.
+- Debug logs, page dumps, `:raw` and the credentials file use UTF-8 explicitly.
+- MCP: a bare `"4"` picks entry #4 when 4 isn't a hotkey. `lotgd_submit` accepts
+  numbers and booleans and matches options case-insensitively.
+
+## [0.1.0] - 2026-10-28
+
+### Added
+- First release: terminal client for LoTGD 2.0.x +nb servers, with colored page text, nav
+  columns, a stat bar and single-key input.
+
+[Unreleased]: https://github.com/jagger/lotgdcli/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jagger/lotgdcli/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/jagger/lotgdcli/releases/tag/v0.1.0
