@@ -39,7 +39,9 @@ so never commit them. They're the best input for parser bugs: read
 
 - `lotgd/client.py`: requests session, login, form submit, debug logging, https enforcement
 - `lotgd/parser.py`: HTML → `Page` (body as rich Text, navs, forms, stats, stat bars)
-- `lotgd/repl.py`: rendering (nav columns, bottom status bar) and single-key input loop
+- `lotgd/repl.py`: rendering and single-key input loop. At 100+ columns, `show_panes` draws
+  menu | page text | stats with a command bar, padded so the prompt is on the last row.
+  Narrower terminals or piped output use the stacked layout (nav columns, bottom status bar).
 - `lotgd/colors.py`: LoTGD `col*` CSS classes → rich styles, plus `gear_style` (MMO rarity
   colors for weapon/armor level: gray/green/blue/orange, teal = shop's top item) (matched case-insensitively)
 - `lotgd/credentials.py`: `load_credentials()` shared by `lotgd --login`/`-u` and lotgd-mcp:

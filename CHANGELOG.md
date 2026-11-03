@@ -5,6 +5,13 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Three-pane screen** on terminals 100+ columns wide: the menu runs down the left, the page
+  text sits in the middle, stats run down the right, and a command bar (form hints, mail hint,
+  messages) is pinned above the prompt on the bottom row. On pages taller than the screen the
+  menu and stats stay next to the prompt. Narrower terminals and piped output keep the old
+  stacked layout.
+
 ### Fixed
 - **MCP: no false "server rejected that action" warning** when a choice isn't on the page or
   `lotgd_look` re-shows a badnav page. Nothing was sent, so there's nothing to warn about.

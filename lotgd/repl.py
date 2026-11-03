@@ -12,8 +12,12 @@ from itertools import zip_longest
 from urllib.parse import urlparse
 
 import requests
-from rich.console import Console
+from rich import box
+from rich.console import Console, Group
 from rich.markup import escape
+from rich.padding import Padding
+from rich.panel import Panel
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
@@ -32,6 +36,9 @@ HELP = """\
   :q         quit
   ?          this help"""
 
+PANE_MIN_WIDTH = 100  # narrower terminals keep the stacked layout
+MAIL_HINT = "✉ mail · #n follows a link · :back returns to the game"
+
 
 class Repl:
     def __init__(self, client, user=None, password=None, login=None):
@@ -48,6 +55,10 @@ class Repl:
     def show(self, page):
         con = self.con
         con.clear()  # each page starts at the top, so the menu doesn't jump around (no-op when piped)
+        if con.is_terminal and con.width >= PANE_MIN_WIDTH:
+            self.show_panes(page)
+            self.notes = []
+            return
         con.rule(page.title or "LoTGD", style="green")
         con.print(page.body)
         con.print()
@@ -55,15 +66,56 @@ class Repl:
         self.show_stats(page)
         if self.game is not None:
             self.con.rule(style="green")
-            self.con.print(Text("✉ mail · #n follows a link · :back returns to the game", style="dim cyan"))
+            self.con.print(Text(MAIL_HINT, style="dim cyan"))
         for note in self.notes:
             con.print(note)
         self.notes = []
 
-    def show_stats(self, page):
+    def show_panes(self, page):
+        """Menu on the left, page text in the middle, stats on the right, and a
+        command bar at the bottom, sized so the prompt lands on the last row."""
+        con = self.con
+        navs = [t for t, _ in self.nav_lines(page)]
+        stats = self.stat_items(page)
+        navw = min(max((t.cell_len for t in navs), default=8), 28)
+        statw = min(max((t.cell_len for t in stats), default=8), 30)
+        bar = [Text(h.strip(), style="dim cyan") for h in (self.form_hint(page),
+                                                     MAIL_HINT if self.game is not None else "") if h.strip()]
+        bar += [n if isinstance(n, Text) else Text.from_markup(str(n)) for n in self.notes]
+        bar.append(Text("? help · :q quit", style="dim"))
+
+        def panel(filler=0, tall=False):
+            # a page taller than the screen scrolls; keep the menu and stats by the prompt
+            v = "bottom" if tall else "top"
+            grid = Table(box=box.SQUARE, show_header=False, show_edge=False, expand=True,
+                         padding=(0, 1), border_style="green")
+            grid.add_column(width=navw, no_wrap=True, overflow="ellipsis", vertical=v)
+            grid.add_column(ratio=1)
+            cells = [Text("\n").join(navs), page.body]
+            if stats:  # logged out there are none: give the text the room
+                grid.add_column(width=statw, no_wrap=True, overflow="ellipsis", vertical=v)
+                cells.append(Text("\n").join(stats))
+            grid.add_row(*cells)
+            if filler > 0:
+                grid.add_row(Text("\n" * (filler - 1)), *[""] * (len(cells) - 1))
+            return Panel(Group(grid, Rule(style="green"), Padding(Group(*bar), (0, 1))),
+                         title=page.title or "LoTGD",
+                         title_align="left", border_style="green", padding=0)
+
+        p = panel()
+        spare = con.height - 1 - len(con.render_lines(p, con.options, pad=False))
+        if spare > 0:
+            p = panel(spare)
+        elif spare < 0:
+            p = panel(tall=True)
+        con.print(p)
+
+    def stat_items(self, page):
+        """The sidebar stats as styled Texts: HP (colored by health), XP (with the
+        "fight your master" mark), gear (rarity colors), the rest, and mail."""
         pairs = [(l, v) for l, v in page.stats if v]
         if not pairs:
-            return
+            return []
         hp = None
         for i, (label, value) in enumerate(pairs):
             if re.match(r"(hit ?points|hp|health)\b", label, re.I):
@@ -103,11 +155,17 @@ class Repl:
             new, old = page.mail
             parts.append(Text.assemble(("✉ ", "bold bright_yellow"), (f"{new} new mail", "bold bright_yellow"),
                                        (" (:mail)", "dim")) if new else Text(f"✉ {old} mail", style="dim"))
-        self.con.rule(style="green")
-        self.con.print(Text(" · ").join(parts))
+        return parts
 
-    def show_navs(self, page):
-        lines = []  # (Text, is_header)
+    def show_stats(self, page):
+        parts = self.stat_items(page)
+        if parts:
+            self.con.rule(style="green")
+            self.con.print(Text(" · ").join(parts))
+
+    def nav_lines(self, page):
+        """Menu entries as [(Text, is_header)], with section headers; in-text links are skipped."""
+        lines = []
         section = None
         for i, nav in enumerate(page.navs, 1):
             if nav.inline:  # already numbered in the page text
@@ -118,7 +176,22 @@ class Repl:
                     lines.append((Text(f"— {section} —", style="bold yellow"), True))
             key = f"[{nav.key.upper()}]" if nav.key else f"[#{i}]"
             lines.append((Text.assemble((key.ljust(6), "bright_cyan"), nav.label), False))
+        return lines
 
+    @staticmethod
+    def form_hint(page):
+        if not page.forms:
+            return ""
+        typable = next((i for i, f in enumerate(page.forms, 1)
+                        if any(fl.kind in ("text", "textarea") for fl in f.fields)), None)
+        hint = f"  form {typable}: just start typing to fill it in" if typable else "  "
+        others = [str(i) for i in range(1, len(page.forms) + 1) if i != typable]
+        if others:
+            hint += ("  ·  " if typable else "") + "buttons: " + ", ".join(f":f{i}" for i in others)
+        return hint
+
+    def show_navs(self, page):
+        lines = self.nav_lines(page)
         if lines:
             gap = 3
             colw = min(max(t.cell_len for t, _ in lines), 36)
@@ -131,13 +204,7 @@ class Repl:
                 grid.add_row(*row)
             self.con.print(grid)
         if page.forms:
-            typable = next((i for i, f in enumerate(page.forms, 1)
-                            if any(fl.kind in ("text", "textarea") for fl in f.fields)), None)
-            hint = f"  form {typable}: just start typing to fill it in" if typable else "  "
-            others = [str(i) for i in range(1, len(page.forms) + 1) if i != typable]
-            if others:
-                hint += ("  ·  " if typable else "") + "buttons: " + ", ".join(f":f{i}" for i in others)
-            self.con.print(Text(hint, style="dim cyan"))
+            self.con.print(Text(self.form_hint(page), style="dim cyan"))
 
     @staticmethod
     def flow(lines, ncols):
