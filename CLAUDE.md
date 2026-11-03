@@ -51,11 +51,14 @@ so never commit them. They're the best input for parser bugs: read
   colors for weapon/armor level: gray/green/blue/orange, teal = shop's top item) (matched case-insensitively)
 - `lotgd/credentials.py`: `load_credentials()` shared by `lotgd --login`/`-u` and lotgd-mcp:
   explicit value > `LOTGD_USER`/`LOTGD_PASSWORD` > `~/.lotgdcli/credentials` (dir 700, file 600, written
-  by `lotgd --save-login`, tightened on read, migrated from `~/.config/lotgdcli/`). The
-  file's password is only used for the file's own user. Plain `lotgd` stays logged out.
+  by `lotgd --save-login`, tightened on read, migrated from `~/.config/lotgdcli/`). The file
+  holds several characters: top-level `user=`/`password=` is the default, `[Name]` sections
+  are the rest; `save_credentials` adds/updates one and keeps the others. A saved password is
+  only used for its own character. Plain `lotgd` stays logged out.
 - `lotgd/mcp_server.py`: `lotgd-mcp` MCP server (extra `[mcp]`, mcp 2.x `MCPServer`, not v1
-  `FastMCP`). Holds one Client per process. Credentials come only from env or
-  `~/.lotgdcli/credentials`, never tool args. Every server hit goes through
+  `FastMCP`). Holds one Client per process. Passwords come only from env or
+  `~/.lotgdcli/credentials`, never tool args; `lotgd_login(character)` takes just a saved
+  character's name. Every server hit goes through
   `_request` (rate limit + per-session cap). Keep it that way. `render()` flags
   badnav.php replays so the agent doesn't think the action happened again.
 - `skills/lotgd/SKILL.md`: agent play guide + ground rules (no chat/mail/PvP unless asked).

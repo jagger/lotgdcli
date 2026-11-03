@@ -5,6 +5,15 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Several saved characters:** `lotgd --save-login -u Name` now adds or updates that character in
+  `~/.lotgdcli/credentials` instead of replacing the file. The first one saved stays the default
+  (`user=` line); others live in `[Name]` sections. `lotgd -u Name` picks up that character's
+  saved password. Existing single-character files keep working unchanged.
+- **`lotgd_login(character="Name")`** in the MCP server logs in as any saved character (only the
+  name goes through the tool, never a password). Omit it for the default. An unknown name lists
+  the saved characters, and logging in as someone else while logged in asks you to log out first.
+
 ## [0.5.0] - 2026-11-03
 
 ### Changed

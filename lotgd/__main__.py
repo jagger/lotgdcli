@@ -18,8 +18,9 @@ def main():
     ap.add_argument("--debug", metavar="DIR", nargs="?", const=str(DEBUG_DIR),
                     help=f"log requests and save every page's HTML to DIR (default {DEBUG_DIR})")
     ap.add_argument("--save-login", action="store_true",
-                    help="ask for a character name and password and save them (owner-only) in "
-                         "~/.lotgdcli/credentials for -l and the MCP server")
+                    help="ask for a character name (or use -u) and password and add them (owner-only) to "
+                         "~/.lotgdcli/credentials for -l/-u and the MCP server; the first one saved "
+                         "is the default, others are kept")
     args = ap.parse_args()
     if args.save_login:
         try:

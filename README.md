@@ -57,15 +57,27 @@ lotgd --url https://other.server/ -u Name
 lotgd -u Name --debug                  # see Troubleshooting
 ```
 
-`--login` (`-l`) logs in as `LOTGD_USER` or the `user=` line of
+`--login` (`-l`) logs in as `LOTGD_USER` or the default (`user=`) character of
 `~/.lotgdcli/credentials` (the same file the MCP server uses, see
 [Agentic play](#agentic-play-mcp-server)). With `-u`, the password comes from
-`LOTGD_PASSWORD`, then from the file if the file is for that character, else
+`LOTGD_PASSWORD`, then from the file if that character is saved there, else
 you're asked. Plain `lotgd` never logs in on its own.
 
 lotgd only writes your password to disk if you ask it to: `lotgd --save-login`
 prompts for your character name and password (not echoed, so it stays out of
-your shell history) and saves them to `~/.lotgdcli/credentials`. That folder is
+your shell history) and saves them to `~/.lotgdcli/credentials`. Run it again with `-u Other` to add
+more characters: the first one saved stays the default, and the others are kept
+in `[Name]` sections:
+
+```ini
+user=Main
+password=...
+
+[Alt]
+password=...
+```
+
+That folder is
 owner-only (700) and the file is 600. If something loosens the file's permissions,
 the client tightens them back on the next read and warns. A file left at the old
 `~/.config/lotgdcli/credentials` is moved there automatically. The password is
@@ -183,7 +195,7 @@ Then ask Claude something like "play my LoTGD turns for today".
 
 | Tool            | Does                                                         |
 |-----------------|--------------------------------------------------------------|
-| `lotgd_login`   | Log in with the configured character                         |
+| `lotgd_login`   | Log in as the default or a named saved character (`character`) |
 | `lotgd_look`    | Show the current page (no request)                           |
 | `lotgd_choose`  | Follow a hotkey (`F`), `#n` entry or in-text link, or a label |
 | `lotgd_submit`  | Fill in and submit a form (field name → value)               |
@@ -191,7 +203,8 @@ Then ask Claude something like "play my LoTGD turns for today".
 | `lotgd_reload`  | Reload the current page                                      |
 
 The password is only read from the credentials file or `LOTGD_USER` /
-`LOTGD_PASSWORD`. It's never a tool argument, so it doesn't pass through the model.
+`LOTGD_PASSWORD`. `lotgd_login` takes a character *name* to pick one of several
+saved characters, but the password is never a tool argument, so it doesn't pass through the model.
 To stay polite to the server, the MCP server waits at least `LOTGD_MIN_INTERVAL`
 seconds (default 1.5) between requests and stops after `LOTGD_MAX_REQUESTS`
 (default 300) per session. `LOTGD_URL` and `LOTGD_DEBUG` (a directory) work like

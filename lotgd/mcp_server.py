@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 from mcp.server.mcpserver import MCPServer
 
 from .client import DEFAULT_URL, Client
-from .credentials import CRED_FILE, load_credentials
+from .credentials import CRED_FILE, load_credentials, saved_characters
 
 # Keep it polite: at most one request per MIN_INTERVAL seconds, and a hard cap on
 # requests per server process so a runaway agent loop can't hammer the server.
@@ -23,7 +23,8 @@ MAX_REQUESTS = int(os.environ.get("LOTGD_MAX_REQUESTS", "300"))
 
 INSTRUCTIONS = """\
 Play Legend of the Green Dragon (LoTGD) on a real, shared web server.
-Start with lotgd_login (or lotgd_look to browse logged out). Every tool returns the
+Start with lotgd_login (or lotgd_look to browse logged out); pass character="Name"
+to play one of several saved characters. Every tool returns the
 resulting page: its text, the menu, any forms, and the character's stats.
 Pick menu entries with lotgd_choose using the hotkey shown in brackets, e.g. "F"
 for [F], or "#n" for numbered entries, including [#n] links in the page text
@@ -36,6 +37,7 @@ _client = None
 _requests = 0
 _last = 0.0
 _game = None  # the game page to go back to while the mail popup is open
+_user = None  # character logged in as
 
 
 def _get_client():
@@ -141,20 +143,34 @@ def render(page, note="", check_badnav=True, logout=False):
 
 
 @mcp.tool()
-def lotgd_login() -> str:
-    """Log in with the character configured for this server (LOTGD_USER/LOTGD_PASSWORD
-    or the credentials file). Returns the first in-game page."""
-    user, password = load_credentials()
+def lotgd_login(character: str | None = None) -> str:
+    """Log in with a saved character. Returns the first in-game page.
+
+    character: name of a character saved in the credentials file (`lotgd --save-login
+        -u Name`). Omit it for the default character (LOTGD_USER or the file's `user=`).
+        Only the name goes through here; the password comes from the file/environment.
+    """
+    global _user
+    user, password = load_credentials(character or None)
     if not (user and password):
-        return (f"No credentials configured. Ask the user to run `lotgd --save-login` (saves "
-                f"{CRED_FILE}, owner-only), or set LOTGD_USER/LOTGD_PASSWORD.")
+        names = saved_characters()
+        who = f"for {character!r} " if character else ""
+        saved = f" Saved characters: {', '.join(names)}." if names else ""
+        return (f"No credentials configured {who}(nothing was sent).{saved} Ask the user to run "
+                f"`lotgd --save-login -u Name` (saves {CRED_FILE}, owner-only), or set LOTGD_USER/LOTGD_PASSWORD.")
     with _lock:
         c = _get_client()
+        if c.logged_in:
+            if _user and _user.lower() == user.lower():
+                return f"Already logged in as {_user}.\n\n" + render(c.page, check_badnav=False)
+            return (f"Already logged in as {_user}. Log out in the game first (e.g. \"Quit to the "
+                    f"fields\"), then log in as {user}. Nothing was sent.")
         if not c.page:
             _request(c.home)
         page = _request(c.login, user, password)
         if not c.logged_in:
             return render(page, "LOGIN FAILED: check the configured credentials", check_badnav=False)
+        _user = user
         return render(page, f"logged in as {user}", check_badnav=False)
 
 
