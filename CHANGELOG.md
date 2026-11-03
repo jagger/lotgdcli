@@ -5,6 +5,8 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-03
+
 ### Changed
 - **Stats grouped by category:** the stats pane follows the server's own sections (Character
   Info, Personal Info, Currency, Equipment Info, ...) with headers, HP and XP bars, short stats
@@ -113,7 +115,8 @@ relied on the old paths needs updating, hence 0.3.0.
 - First release: terminal client for LoTGD 2.0.x +nb servers, with colored page text, nav
   columns, a stat bar and single-key input.
 
-[Unreleased]: https://github.com/jagger/lotgdcli/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/jagger/lotgdcli/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jagger/lotgdcli/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jagger/lotgdcli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jagger/lotgdcli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jagger/lotgdcli/compare/v0.1.0...v0.2.0
