@@ -5,6 +5,24 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Stats grouped by category:** the stats pane follows the server's own sections (Character
+  Info, Personal Info, Currency, Equipment Info, ...) with headers, HP and XP bars, short stats
+  packed two or three to a row, and duplicate entries (Race) dropped. Unread mail sits on top.
+  Narrow terminals get one line per category.
+- **Prettier frame:** rounded border, matching section headers in the menu and stats, a
+  one-line command bar with help on the right, and a mail popup that uses the full width.
+
+### Added
+- **Scroll long pages** inside the text pane with PgDn/PgUp (or Space, ↓, ↑). The command bar
+  shows the position. A menu longer than the screen flows into two columns.
+
+### Fixed
+- **The screen no longer scrolls on an invalid key.** Messages ("No [X] on this page", errors,
+  "cancelled") used to print under the prompt, pushing the top of the screen off. They now
+  show in the command bar and the screen is redrawn in place. Pages taller than the screen
+  no longer push the title off either.
+
 ## [0.4.0] - 2026-11-03
 
 ### Changed

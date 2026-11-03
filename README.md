@@ -74,16 +74,22 @@ an SSH key without a passphrase is.
 
 ### The screen
 
-Each page shows three things, top to bottom:
+On terminals at least 100 columns wide, the screen is split into three panes in a
+frame exactly one screen tall, so nothing scrolls off the top:
 
-1. **The page text** in the game's colors: village descriptions, fight rounds,
-   news and so on. Enemy health bars are drawn as text bars (`██████░░░░`).
-2. **The menu** (the game's "navs"), grouped by section and laid out in columns
-   to fit your terminal. `[F]` means press **F**.
-3. **The status bar**, showing:
-   - **HP**: green, then yellow, then red as it drops.
-   - **XP**: progress toward your next level. It turns blue and says
-     **⚔ fight your master!** once you have enough to challenge your master.
+1. **The menu** on the left (the game's "navs"), grouped by section. `[F]` means
+   press **F**. A menu too long for the screen flows into two columns.
+2. **The page text** in the middle, in the game's colors: village descriptions,
+   fight rounds, news and so on. Enemy health bars are drawn as text bars
+   (`██████░░░░`). Text longer than the pane scrolls inside it: **PgDn** / **PgUp**
+   (or **Space** / **↓** / **↑**). The command bar shows where you are, as in
+   `▼ lines 1–34 of 43`.
+3. **Stats** on the right, grouped under the server's own categories
+   (Character Info, Personal Info, Currency, Equipment Info, ...), with short
+   stats packed side by side:
+   - **HP** as a bar: green, then yellow, then red as it drops.
+   - **XP** as a bar toward your next level. It turns blue and says
+     **⚔ master!** once you have enough to challenge your master.
    - **Weapon / Armor**: colored by how good they are in the current shop tier,
      MMO style: gray, green, blue, orange, and teal for the best item the shop
      sells (level 15), with the level shown as `14/15`. The sidebar only gives
@@ -91,8 +97,14 @@ Each page shows three things, top to bottom:
      visit MightyE's and Pegasus once (and again after a dragon kill) and the
      colors appear. Learned levels are saved in `~/.lotgdcli/cache/`, so
      you only need to see each shop's list once per machine.
-   - **✉ mail**: shows `✉ 2 new mail (:mail)` in yellow when you have unread mail.
-   - Your other stats: level, turns, gold, gems, buffs, ...
+   - **✉ mail**: `✉ 2 new mail :mail` in yellow at the top when you have unread mail.
+
+Under the panes, the **command bar** holds form hints, messages (like "No [X] on
+this page") and the scroll position. Messages appear there and the screen is
+redrawn in place; nothing is printed below the prompt.
+
+Narrower terminals and piped output get a stacked layout instead: page text, the
+menu in columns, then one line of stats per category.
 
 ### Keys
 
@@ -111,6 +123,7 @@ Start with `:` or `#` to type a longer command, then press Enter:
 | `#3`          | Follow entry number 3: a menu entry without a hotkey, or a link in the page text |
 | `:f` / `:f2`  | Fill in and submit form 1 / form 2 (or just start typing for form 1) |
 | `:mail` / `:m` | Open Ye Olde Mail; `:back` (or `:mail` again) returns to the game |
+| PgDn / PgUp   | Scroll long page text (also Space, ↓, ↑)                   |
 | `:r`          | Reload the current page                                    |
 | `:motd`       | Show the message of the day                                |
 | `:login`      | Log in again, e.g. after your session times out            |
