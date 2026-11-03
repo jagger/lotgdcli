@@ -207,7 +207,9 @@ The password is only read from the credentials file or `LOTGD_USER` /
 saved characters, but the password is never a tool argument, so it doesn't pass through the model.
 To stay polite to the server, the MCP server waits at least `LOTGD_MIN_INTERVAL`
 seconds (default 1.5) between requests and stops after `LOTGD_MAX_REQUESTS`
-(default 300) per session. `LOTGD_URL` and `LOTGD_DEBUG` (a directory) work like
+(default 2000) per local calendar day. The day's count is kept in
+`~/.lotgdcli/cache/requests.json`, shared by all `lotgd-mcp` processes, so
+reconnecting the server doesn't reset it. `LOTGD_URL` and `LOTGD_DEBUG` (a directory) work like
 `--url` and `--debug`.
 
 ## Troubleshooting

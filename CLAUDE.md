@@ -59,7 +59,7 @@ so never commit them. They're the best input for parser bugs: read
   `FastMCP`). Holds one Client per process. Passwords come only from env or
   `~/.lotgdcli/credentials`, never tool args; `lotgd_login(character)` takes just a saved
   character's name. Every server hit goes through
-  `_request` (rate limit + per-session cap). Keep it that way. `render()` flags
+  `_request` (rate limit + per-day cap, counted in `cache/requests.json` under a file lock). Keep it that way. `render()` flags
   badnav.php replays so the agent doesn't think the action happened again.
 - `skills/lotgd/SKILL.md`: agent play guide + ground rules (no chat/mail/PvP unless asked).
   Installed by symlinking into `~/.claude/skills/`.

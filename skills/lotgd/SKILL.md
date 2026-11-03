@@ -22,7 +22,7 @@ human would: one deliberate action at a time, and only options the page offers.
   `"close"` to go back to the game page. Stats show `Mail: N new` when there's unread mail,
   and `Weapon`/`Armor` carry `(level n/15)` once the shop tables have been seen.
 
-Every result ends with `[requests this session: n/cap]`. If you hit the cap, stop and report.
+Every result ends with `[requests today: n/cap]` (a daily cap shared by all sessions). If you hit the cap, stop and report.
 
 ## Ground rules
 

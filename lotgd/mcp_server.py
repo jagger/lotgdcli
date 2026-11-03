@@ -5,6 +5,9 @@ the environment or a credentials file, never from tool arguments, so the passwor
 doesn't pass through the model.
 """
 
+import datetime
+import fcntl
+import json
 import os
 import re
 import threading
@@ -15,11 +18,15 @@ from mcp.server.mcpserver import MCPServer
 
 from .client import DEFAULT_URL, Client
 from .credentials import CRED_FILE, load_credentials, saved_characters
+from .paths import CACHE_DIR
 
 # Keep it polite: at most one request per MIN_INTERVAL seconds, and a hard cap on
-# requests per server process so a runaway agent loop can't hammer the server.
+# requests per local calendar day so a runaway agent loop can't hammer the server.
+# The day's count lives in CACHE_DIR, shared by every lotgd-mcp process and kept
+# across restarts, so reconnecting doesn't reset it.
 MIN_INTERVAL = float(os.environ.get("LOTGD_MIN_INTERVAL", "1.5"))
-MAX_REQUESTS = int(os.environ.get("LOTGD_MAX_REQUESTS", "300"))
+MAX_REQUESTS = int(os.environ.get("LOTGD_MAX_REQUESTS", "2000"))
+COUNT_FILE = CACHE_DIR / "requests.json"
 
 INSTRUCTIONS = """\
 Play Legend of the Green Dragon (LoTGD) on a real, shared web server.
@@ -34,7 +41,7 @@ current page offers. Before stopping, log out in the game (e.g. "Quit to the fie
 mcp = MCPServer("lotgd", instructions=INSTRUCTIONS)
 _lock = threading.Lock()
 _client = None
-_requests = 0
+_requests = 0  # today's count (all processes), as of this process's last request
 _last = 0.0
 _game = None  # the game page to go back to while the mail popup is open
 _user = None  # character logged in as
@@ -47,11 +54,34 @@ def _get_client():
     return _client
 
 
+def _count(bump=False):
+    """Today's request count from COUNT_FILE (all processes), +1 if bump. Uses a file
+    lock so concurrent servers don't lose counts; a new day starts again at 0."""
+    global _requests
+    today = datetime.date.today().isoformat()
+    COUNT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(COUNT_FILE, "a+", encoding="utf-8") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        fh.seek(0)
+        try:
+            data = json.loads(fh.read() or "{}")
+        except ValueError:
+            data = {}
+        n = data.get("count", 0) if data.get("date") == today else 0
+        if bump:
+            n += 1
+            fh.seek(0)
+            fh.truncate()
+            json.dump({"date": today, "count": n}, fh)
+    _requests = n
+    return n
+
+
 def _request(fn, *args):
-    """Run one server request under the rate limit and request cap."""
-    global _requests, _last
-    if _requests >= MAX_REQUESTS:
-        raise RuntimeError(f"request cap reached ({MAX_REQUESTS} this session, LOTGD_MAX_REQUESTS); "
+    """Run one server request under the rate limit and daily request cap."""
+    global _last
+    if _count() >= MAX_REQUESTS:
+        raise RuntimeError(f"daily request cap reached ({MAX_REQUESTS} today, LOTGD_MAX_REQUESTS); "
                            "stop playing and tell the user")
     wait = _last + MIN_INTERVAL - time.monotonic()
     if wait > 0:
@@ -59,7 +89,7 @@ def _request(fn, *args):
     try:
         return fn(*args)
     finally:
-        _requests += 1
+        _count(bump=True)
         _last = time.monotonic()
 
 
@@ -138,7 +168,7 @@ def render(page, note="", check_badnav=True, logout=False):
             out.append("\n(Logged out. Call lotgd_login to play again.)")
         else:
             out.append("\n(You've been logged out, probably a session timeout. Call lotgd_login.)")
-    out.append(f"\n[requests this session: {_requests}/{MAX_REQUESTS}]")
+    out.append(f"\n[requests today: {_count()}/{MAX_REQUESTS}]")
     return "\n".join(out)
 
 

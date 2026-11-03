@@ -14,6 +14,12 @@ versions follow [SemVer](https://semver.org/).
   name goes through the tool, never a password). Omit it for the default. An unknown name lists
   the saved characters, and logging in as someone else while logged in asks you to log out first.
 
+### Changed
+- **MCP request cap is now per day:** `LOTGD_MAX_REQUESTS` (default raised from 300 to 2000)
+  counts requests per local calendar day across all `lotgd-mcp` processes, stored in
+  `~/.lotgdcli/cache/requests.json`, instead of per server process. Results end with
+  `[requests today: n/cap]`.
+
 ## [0.5.0] - 2026-11-03
 
 ### Changed
