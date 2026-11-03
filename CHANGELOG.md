@@ -5,9 +5,11 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-03
+
 ### Breaking
 Everything lotgdcli stores moved to `~/.lotgdcli` (`LOTGD_HOME` overrides it). Anything that
-relied on the old paths needs updating, so the next release is 0.3.0.
+relied on the old paths needs updating, hence 0.3.0.
 - **Credentials moved to `~/.lotgdcli/credentials`**, kept owner-only (folder 700, file 600,
   tightened with a warning if loosened). An existing `~/.config/lotgdcli/credentials` is
   *moved* there on first use and the old file is deleted, so scripts or an older lotgdcli
@@ -76,6 +78,7 @@ relied on the old paths needs updating, so the next release is 0.3.0.
 - First release: terminal client for LoTGD 2.0.x +nb servers, with colored page text, nav
   columns, a stat bar and single-key input.
 
-[Unreleased]: https://github.com/jagger/lotgdcli/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jagger/lotgdcli/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/jagger/lotgdcli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jagger/lotgdcli/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jagger/lotgdcli/releases/tag/v0.1.0
