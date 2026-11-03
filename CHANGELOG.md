@@ -5,6 +5,8 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-03
+
 ### Changed
 - **Three-pane screen** on terminals 100+ columns wide: the menu runs down the left, the page
   text sits in the middle, stats run down the right, and a command bar (form hints, mail hint,
@@ -91,7 +93,8 @@ relied on the old paths needs updating, hence 0.3.0.
 - First release: terminal client for LoTGD 2.0.x +nb servers, with colored page text, nav
   columns, a stat bar and single-key input.
 
-[Unreleased]: https://github.com/jagger/lotgdcli/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jagger/lotgdcli/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jagger/lotgdcli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jagger/lotgdcli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jagger/lotgdcli/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jagger/lotgdcli/releases/tag/v0.1.0
