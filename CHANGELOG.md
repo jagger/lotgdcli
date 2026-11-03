@@ -5,16 +5,22 @@ versions follow [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Breaking
+Everything lotgdcli stores moved to `~/.lotgdcli` (`LOTGD_HOME` overrides it). Anything that
+relied on the old paths needs updating, so the next release is 0.3.0.
+- **Credentials moved to `~/.lotgdcli/credentials`**, kept owner-only (folder 700, file 600,
+  tightened with a warning if loosened). An existing `~/.config/lotgdcli/credentials` is
+  *moved* there on first use and the old file is deleted, so scripts or an older lotgdcli
+  install reading the old path won't find it. `LOTGD_CREDENTIALS` still overrides the path.
+- **Saved files live in `~/.lotgdcli/cache/`:** learned gear levels (moved from
+  `~/.cache/lotgdcli`, migrated automatically), `:raw` page dumps (were temp files), and the
+  default `--debug` directory. `--debug` with no DIR no longer writes to `./debug`; pass
+  `--debug debug` for the old behavior.
+
 ### Changed
 - **Login shows progress:** a spinner says what's happening (connecting, sending the login,
   each redirect the server answers with), and the next page notes how long the login took.
   Failed logins say so with the time, too.
-- **Saved files live in `~/.lotgdcli/cache/`** (`LOTGD_HOME` overrides `~/.lotgdcli`): learned
-  gear levels (moved from `~/.cache/lotgdcli`, migrated automatically), `:raw` page dumps
-  (were temp files), and the default `--debug` directory (was `./debug`).
-- **Credentials moved to `~/.lotgdcli/credentials`**, kept owner-only (folder 700, file 600,
-  tightened with a warning if loosened). An existing `~/.config/lotgdcli/credentials` is moved
-  there on first use.
 
 ### Added
 - **`lotgd --save-login`** prompts for character name and password (not echoed) and saves them

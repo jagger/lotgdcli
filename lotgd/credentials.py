@@ -14,7 +14,7 @@ from pathlib import Path
 from .paths import HOME_DIR
 
 CRED_FILE = Path(os.environ.get("LOTGD_CREDENTIALS") or HOME_DIR / "credentials").expanduser()
-OLD_CRED_FILE = Path("~/.config/lotgdcli/credentials").expanduser()  # before 0.2.1
+OLD_CRED_FILE = Path("~/.config/lotgdcli/credentials").expanduser()  # before 0.3.0
 
 
 def _warn(msg):
