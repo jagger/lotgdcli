@@ -17,7 +17,11 @@ human would: one deliberate action at a time, and only options the page offers.
 - `lotgd_choose`: follow a menu entry with its hotkey (`"F"`), `"#n"` for numbered
   entries and `[#n]` in-text links (shop items), or the exact label.
 - `lotgd_submit`: fill a form (bank amount, inn, naming). Fields you leave out keep their defaults.
-- `lotgd_reload`: refresh the page.
+- `lotgd_reload`: refresh the page (not possible right after a form submit; pick a menu entry).
+- `lotgd_status`: character status as JSON from the current page, no request.
+- `lotgd_bank(action, amount, keep)`: deposit/withdraw/balance in one call; `amount` omitted = all.
+- `lotgd_heal(target_pct)`: cheapest potion that reaches that HP percentage; no request if already there.
+- `lotgd_submit(..., expect="bank.php")`: refuse the post unless the form posts there.
 - `lotgd_mail`: `"open"` the mailbox popup (then `lotgd_choose`/`lotgd_submit` on it),
   `"close"` to go back to the game page. Stats show `Mail: N new` when there's unread mail,
   and `Weapon`/`Armor` carry `(level n/15)` once the shop tables have been seen.

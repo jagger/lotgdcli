@@ -48,6 +48,7 @@ class Client:
         self.s.headers["User-Agent"] = "lotgdcli/0.1 (terminal client)"
         self.s.cookies.set("template", SKIN, domain=urlparse(self.base).hostname, path="/")
         self.page = None
+        self.from_post = False  # current page is the answer to a form POST
         self.logged_in = False
         # gear levels learned from the weapon/armor shop tables, kept per server
         # since the sidebar shows only names: {"weapon"|"armor": {name: level}}
@@ -91,6 +92,8 @@ class Client:
         if self.debug_dir:
             self._dump(resp)
         resp.raise_for_status()
+        first = resp.history[0].request if resp.history else resp.request
+        self.from_post = first.method == "POST"  # a reload would replay the POST
         self.page = parse(resp.text, resp.url)
         if self.page.gear:
             self.learn_gear(self.page)

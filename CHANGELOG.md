@@ -6,6 +6,23 @@ versions follow [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **MCP `lotgd_status`:** character status as JSON (level, XP and % to next, HP, gold, bank, gems,
+  turns, PvP, favor, buffs with rounds left, requests used today). Reads the current page, so it
+  sends no request.
+- **MCP `lotgd_bank(action, amount, keep)`:** deposit or withdraw in one call (navigates to the
+  bank, fills the form, returns to the village). `amount` omitted or `"all"` moves everything;
+  `keep` leaves gold on hand. Replaces the `values=` vs `fields=` pitfall.
+- **MCP `lotgd_heal(target_pct)`:** buys the cheapest potion that reaches the target HP percentage
+  (percent potions heal that share of the *missing* HP), and sends nothing if HP is already high
+  enough or the price exceeds your gold.
+- **MCP `lotgd_submit(expect=...)`** refuses to post unless the form's target contains the given
+  text, and forms are now listed with where they post to, so shifting form numbers can't send
+  chat text to the wrong form.
+- `tests/test_mcp_helpers.py` (`python -m unittest discover -s tests`).
+
+### Fixed
+- **MCP `lotgd_reload`** after a form submit no longer re-requests the POST URL and gets a badnav
+  page; it explains that and sends nothing.
 - **Several saved characters:** `lotgd --save-login -u Name` now adds or updates that character in
   `~/.lotgdcli/credentials` instead of replacing the file. The first one saved stays the default
   (`user=` line); others live in `[Name]` sections. `lotgd -u Name` picks up that character's

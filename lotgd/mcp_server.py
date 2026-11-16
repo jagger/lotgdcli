@@ -130,7 +130,9 @@ def render(page, note="", check_badnav=True, logout=False):
     if inline:
         out.append(f"(+{inline} in-text links marked [#n] above)")
     for n, form in enumerate(page.forms, 1):
-        out.append(f"\n## Form {n}")
+        out.append(f"\n## Form {n}" + (f" (posts to {form.action.split('?')[0]}"
+                                      + (f", {re.search(r'op=(\\w+)', form.action)[0]}" if re.search(r'op=\w+', form.action or '') else "")
+                                      + ")" if form.action else ""))
         for f in form.fields:
             if f.kind == "hidden":
                 continue
@@ -250,7 +252,7 @@ def lotgd_choose(choice: str) -> str:
 
 @mcp.tool()
 def lotgd_submit(form: int = 1, values: dict[str, str | int | float | bool] | None = None,
-                 button: str | None = None) -> str:
+                 button: str | None = None, expect: str | None = None) -> str:
     """Fill in and submit a form on the current page (bank, inn, chat, naming...).
 
     form: form number as listed under "## Form n".
@@ -258,12 +260,18 @@ def lotgd_submit(form: int = 1, values: dict[str, str | int | float | bool] | No
         select/radio fields give the option value or its label (any case); for
         checkboxes "on"/"off" or true/false.
     button: label of the button to press (default: the first one).
+    expect: text the form's target must contain (e.g. "bank.php"). Form numbers can
+        shift between page loads, so pass it to refuse a submit to the wrong form.
     """
     with _lock:
         c = _get_client()
         if not c.page or not 1 <= form <= len(c.page.forms):
             return "No such form on this page; nothing was sent."
         f = c.page.forms[form - 1]
+        if expect and expect.lower() not in (f.action or "").lower():
+            return (f"Form {form} posts to {f.action!r}, not {expect!r}; nothing was sent. "
+                    "Form numbers shift between page loads: check the list below.\n\n"
+                    + render(c.page, check_badnav=False))
         values = dict(values or {})
         data = {}
         for fld in f.fields:
@@ -332,7 +340,184 @@ def lotgd_reload() -> str:
         c = _get_client()
         if not c.page:
             return render(_request(c.home))
+        if c.from_post:
+            # this page answered a form POST; fetching its URL would replay the form
+            # without its data and the server answers badnav. Nothing is sent.
+            return ("This page came from a form submission, so it can't be reloaded without "
+                    "replaying the form (nothing was sent). Pick a menu entry instead.\n\n"
+                    + render(c.page, check_badnav=False))
         return render(_request(c.get, c.page.url))
+
+
+def _num(text):
+    m = re.search(r"-?\d[\d,]*", text or "")
+    return int(m[0].replace(",", "")) if m else None
+
+
+def stat_dict(page):
+    """The page's stats as {label: value}; the first of a repeated label wins."""
+    out = {}
+    for label, value in page.stats:
+        out.setdefault(label, value)
+    return out
+
+
+def status_of(page):
+    """Character status from a page's stats sidebar, as plain data (no request)."""
+    st = stat_dict(page)
+    hp = re.match(r"\s*(\d[\d,]*)\s*/\s*(\d[\d,]*)", st.get("Hitpoints", ""))
+    xp = next((b for k, b in page.bars.items() if re.match(r"exp", k, re.I)), None)
+    out = {"page": page.title, "name": st.get("Name"), "level": _num(st.get("Level")),
+           "hp": int(hp[1].replace(",", "")) if hp else None,
+           "max_hp": int(hp[2].replace(",", "")) if hp else None,
+           "xp": _num(st.get("Experience")), "xp_pct_to_next": xp[0] if xp else None,
+           "ready_for_master": bool(xp and (xp[1] == "blue" or xp[0] >= 100)),
+           "turns": _num(st.get("Turns")), "pvp_fights": _num(st.get("PvP")),
+           "gold": _num(st.get("Gold")), "bank": _num(st.get("Bankgold")), "gems": _num(st.get("Gems")),
+           "favor": _num(st.get("Favor")), "spirits": st.get("Spirits"),
+           "weapon": st.get("Weapon"), "armor": st.get("Armor"), "buffs": st.get("Buffs")}
+    if page.mail:
+        out["mail_new"] = page.mail[0]
+    return {k: v for k, v in out.items() if v is not None}
+
+
+@mcp.tool()
+def lotgd_status() -> str:
+    """Compact character status as JSON (level, XP, HP, gold, bank, gems, turns, PvP,
+    favor, buffs, requests used today). Reads the stats of the current page, so it
+    sends no request; refresh them by visiting a page first."""
+    with _lock:
+        c = _get_client()
+        if not c.page or not c.logged_in:
+            return "Not logged in; call lotgd_login first."
+        data = status_of(c.page)
+        data["requests_today"] = _count()
+        data["request_cap"] = MAX_REQUESTS
+        return json.dumps(data, indent=1, ensure_ascii=False)
+
+
+def _nav(page, pattern, label=False):
+    """First menu entry whose href (or label) matches the regex, or None."""
+    return next((n for n in page.navs if re.search(pattern, n.label if label else n.href, re.I)), None)
+
+
+@mcp.tool()
+def lotgd_bank(action: str = "balance", amount: int | str | None = None, keep: int = 0,
+               return_to_village: bool = True) -> str:
+    """Deposit or withdraw gold at the bank in one call. Start from the village (or
+    anywhere with a bank link, or the bank itself).
+
+    action: "balance" (no request), "deposit" or "withdraw".
+    amount: gold to move; omit or "all" to deposit everything on hand (minus keep)
+        or withdraw the whole balance. Clamped to what you have.
+    keep: with "deposit", gold to leave on hand (e.g. keep=100 for the healer).
+    return_to_village: go back to the village afterwards (one more request).
+    """
+    action = (action or "").strip().lower()
+    with _lock:
+        c = _get_client()
+        if not c.page or not c.logged_in:
+            return "Not logged in; call lotgd_login first."
+        st = status_of(c.page)
+        gold, bank = st.get("gold"), st.get("bank")
+        if action == "balance":
+            return f"Gold on hand {gold}, in bank {bank} (from the current page; nothing was sent)."
+        if action not in ("deposit", "withdraw"):
+            return f"Unknown action {action!r}; use balance, deposit or withdraw. Nothing was sent."
+        if gold is None or bank is None:
+            return "This page shows no gold/bank stats; go to the village first. Nothing was sent."
+        have = gold if action == "deposit" else bank
+        whole = amount is None or str(amount).strip().lower() == "all"
+        try:
+            n = max(have - max(keep, 0), 0) if whole and action == "deposit" else have if whole else int(amount)
+        except ValueError:
+            return f"amount {amount!r} isn't a number; nothing was sent."
+        n = min(n, have)
+        if n <= 0:
+            return f"Nothing to {action} (gold {gold}, bank {bank}, keep {keep}). Nothing was sent."
+        page = c.page
+        if not _nav(page, rf"bank\.php\?op={action}"):
+            go = _nav(page, r"^bank\.php(\?c=|$)")
+            if not go:
+                return "No bank link on this page; go to the village first. Nothing was sent."
+            page = _request(c.get, go.href)
+        step = _nav(page, rf"bank\.php\?op={action}")
+        if not step:
+            return "The bank page has no such option.\n\n" + render(page, check_badnav=False)
+        page = _request(c.get, step.href)
+        form = next((f for f in page.forms if "bank.php" in (f.action or "")), None)
+        field = next((x for x in (form.fields if form else []) if x.kind == "text"), None)
+        if not field:
+            return "The bank form wasn't found.\n\n" + render(page, check_badnav=False)
+        page = _request(c.submit, form, {field.name: str(n)}, form.buttons[0])
+        lines = [x.strip() for x in page.body.plain.split("\n") if x.strip()]
+        ledger = next((x for x in lines if re.search(r"gold", x)), lines[0] if lines else "")[:300]
+        if return_to_village:
+            back = _nav(page, r"^village\.php")
+            if back:
+                page = _request(c.get, back.href)
+        after = status_of(page)
+        return render(page, f"{action} {n}: {ledger} -> gold {after.get('gold')}, bank {after.get('bank')}",
+                      check_badnav=False)
+
+
+def pick_heal(hp, max_hp, target_pct, options):
+    """Smallest potion that gets to target_pct of max HP. options: {pct: cost or None}.
+
+    Percent potions heal that percent of the *missing* HP. Returns (pct, cost) or None."""
+    want = -(-target_pct * max_hp // 100)  # ceil
+    missing = max_hp - hp
+    if missing <= 0 or want <= hp:
+        return None
+    need = (want - hp) * 100 / missing
+    for pct in sorted(options):
+        if pct >= need - 1e-9:
+            return pct, options[pct]
+    return None
+
+
+@mcp.tool()
+def lotgd_heal(target_pct: int = 100) -> str:
+    """Buy the cheapest healing potion that brings HP to at least target_pct of max HP
+    (default 100). Start from the village, the forest or the healer's hut. Sends no
+    request if HP is already high enough, and won't buy if the price is more than the
+    gold on hand."""
+    with _lock:
+        c = _get_client()
+        if not c.page or not c.logged_in:
+            return "Not logged in; call lotgd_login first."
+        st = status_of(c.page)
+        hp, max_hp, gold = st.get("hp"), st.get("max_hp"), st.get("gold")
+        if hp is None or max_hp is None:
+            return "This page shows no HP; nothing was sent."
+        target_pct = min(max(int(target_pct), 1), 100)
+        if hp * 100 >= target_pct * max_hp:
+            return f"HP {hp}/{max_hp} is already at {target_pct}% or more; nothing was sent."
+        page = c.page
+        if not _nav(page, r"healer\.php\?op=buy"):
+            go = _nav(page, r"^healer\.php(\?c=|$)")
+            if not go:
+                return "No healer link on this page; go to the village or forest first. Nothing was sent."
+            page = _request(c.get, go.href)
+        options = {}
+        for n in page.navs:
+            m = re.search(r"healer\.php\?op=buy&pct=(\d+)", n.href)
+            if m:
+                options[int(m[1])] = _num(re.sub(r"^.*?-", "", n.label)) if "gold" in n.label else None
+        hp2, max2 = status_of(page).get("hp", hp), status_of(page).get("max_hp", max_hp)
+        pick = pick_heal(hp2, max2, target_pct, options)
+        if not pick:
+            return "No healing potion on offer reaches that.\n\n" + render(page, check_badnav=False)
+        pct, cost = pick
+        if cost is not None and gold is not None and cost > gold:
+            return (f"The {pct}% potion costs {cost} gold but you have {gold}; nothing was bought.\n\n"
+                    + render(page, check_badnav=False))
+        nav = _nav(page, rf"healer\.php\?op=buy&pct={pct}\b")
+        page = _request(c.get, nav.href)
+        after = status_of(page)
+        return render(page, f"bought the {pct}% potion" + (f" for {cost} gold" if cost else "")
+                      + f": HP {after.get('hp')}/{after.get('max_hp')}, gold {after.get('gold')}",
+                      check_badnav=False)
 
 
 def main():

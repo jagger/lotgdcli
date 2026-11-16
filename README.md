@@ -200,7 +200,10 @@ Then ask Claude something like "play my LoTGD turns for today".
 | `lotgd_choose`  | Follow a hotkey (`F`), `#n` entry or in-text link, or a label |
 | `lotgd_submit`  | Fill in and submit a form (field name → value)               |
 | `lotgd_mail`    | `"open"` the mailbox, `"close"` to return to the game         |
-| `lotgd_reload`  | Reload the current page                                      |
+| `lotgd_reload`  | Reload the current page (not right after a form submit)      |
+| `lotgd_status`  | Status as JSON from the current page, no request             |
+| `lotgd_bank`    | `deposit` / `withdraw` / `balance`, `amount` or all, `keep`  |
+| `lotgd_heal`    | Cheapest potion reaching `target_pct` of max HP              |
 
 The password is only read from the credentials file or `LOTGD_USER` /
 `LOTGD_PASSWORD`. `lotgd_login` takes a character *name* to pick one of several
