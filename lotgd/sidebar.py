@@ -51,7 +51,7 @@ def xp_line(value, barinfo):
     if not barinfo:
         return Text.assemble(("XP ", "bold"), (value, "bright_white"))
     pct, color = barinfo
-    ready = color == "blue" or pct >= 100
+    ready = color == "blue"
     style = "bold bright_blue" if ready else "bright_white"
     line = Text.assemble(("XP ", "bold"), bar(pct / 100, "bright_blue" if ready else "white"),
                          (f" {pct}%", style))

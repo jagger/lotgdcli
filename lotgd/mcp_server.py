@@ -152,7 +152,7 @@ def render(page, note="", check_badnav=True, logout=False):
         bar = page.bars.get(label)
         if bar and re.match(r"exp", label, re.I):
             pct, color = bar
-            value += f" ({pct}% to next level" + (", READY to fight your master" if color == "blue" or pct >= 100 else "") + ")"
+            value += f" ({pct}% to next level" + (", READY to fight your master" if color == "blue" else "") + ")"
         kind = {"weapon": "weapon", "armor": "armor"}.get(label.lower())
         lvl = c.gear_level(kind, value) if kind else None
         if lvl:
@@ -371,7 +371,7 @@ def status_of(page):
            "hp": int(hp[1].replace(",", "")) if hp else None,
            "max_hp": int(hp[2].replace(",", "")) if hp else None,
            "xp": _num(st.get("Experience")), "xp_pct_to_next": xp[0] if xp else None,
-           "ready_for_master": bool(xp and (xp[1] == "blue" or xp[0] >= 100)),
+           "ready_for_master": bool(xp and xp[1] == "blue"),
            "turns": _num(st.get("Turns")), "pvp_fights": _num(st.get("PvP")),
            "gold": _num(st.get("Gold")), "bank": _num(st.get("Bankgold")), "gems": _num(st.get("Gems")),
            "favor": _num(st.get("Favor")), "spirits": st.get("Spirits"),

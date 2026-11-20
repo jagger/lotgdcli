@@ -21,6 +21,10 @@ versions follow [SemVer](https://semver.org/).
 - `tests/test_mcp_helpers.py` (`python -m unittest discover -s tests`).
 
 ### Fixed
+- **READY-for-master label:** only the blue bar counts now. The expbar module floors the *remaining*
+  percent, so the bar reads 100% while you are up to ~1% of the level span short (e.g. 36,411 of
+  36,421 XP); the master then refuses and burns the day's challenge. Affects the sidebar, the
+  `lotgd_status` XP line and `ready_for_master`.
 - **MCP `lotgd_reload`** after a form submit no longer re-requests the POST URL and gets a badnav
   page; it explains that and sends nothing.
 - **Several saved characters:** `lotgd --save-login -u Name` now adds or updates that character in
