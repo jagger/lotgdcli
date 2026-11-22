@@ -21,6 +21,12 @@ human would: one deliberate action at a time, and only options the page offers.
 - `lotgd_status`: character status as JSON from the current page, no request.
 - `lotgd_bank(action, amount, keep)`: deposit/withdraw/balance in one call; `amount` omitted = all.
 - `lotgd_heal(target_pct)`: cheapest potion that reaches that HP percentage; no request if already there.
+- `lotgd_farm(kills, mode, fairy, heal_below_pct, max_requests)`: runs the forest loop for you (Look, Thrill, or
+  `mix`; Fight to the end; heal when hurt; decline or accept the gem fairy) and returns one short summary. Start
+  from the forest menu. Use it for long grinds instead of many `lotgd_choose` calls: about 300 tokens per run.
+  It obeys the same rate limit and daily cap, stops on unknown pages, HP under 25% mid-fight, or death, and never
+  runs, shops, banks, chats, mails or attacks. A call over 120 s goes to the background and its result arrives
+  later, so use `max_requests` of about 300. If it stops mid-fight, press `F` yourself.
 - `lotgd_submit(..., expect="bank.php")`: refuse the post unless the form posts there.
 - `lotgd_mail`: `"open"` the mailbox popup (then `lotgd_choose`/`lotgd_submit` on it),
   `"close"` to go back to the game page. Stats show `Mail: N new` when there's unread mail,
