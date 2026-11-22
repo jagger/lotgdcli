@@ -520,6 +520,118 @@ def lotgd_heal(target_pct: int = 100) -> str:
                       check_badnav=False)
 
 
+def _label(nav):
+    return re.sub(r"^\(.\)\s*", "", nav.label).strip()
+
+
+def farm_action(page, fairy="decline"):
+    """What the forest-farm loop should do on this page, as (kind, nav).
+
+    kinds: "fairy" (decline/accept the gem fairy), "fight" (press Fight),
+    "forest" (nav is a (look, thrill) pair of navs), "unknown" (stop and tell the user).
+    Only these forest actions are ever chosen: no PvP, chat, mail or shopping.
+    """
+    labels = {_label(n).lower(): n for n in page.navs}
+    gem = labels.get("give her a gem" if fairy == "accept" else "don't give her a gem")
+    if gem:
+        return "fairy", gem
+    if "fight" in labels and "run" in labels:
+        return "fight", labels["fight"]
+    look = next((n for k, n in labels.items() if k.startswith("look for something to kill")), None)
+    thrill = next((n for k, n in labels.items() if "thrillseeking" in k), None)
+    if look and thrill:
+        return "forest", (look, thrill)
+    return "unknown", None
+
+
+@mcp.tool()
+def lotgd_farm(kills: int = 20, mode: str = "look", fairy: str = "decline",
+               heal_below_pct: int = 60, max_requests: int = 120) -> str:
+    """Run the forest-fight loop for you and return only a short summary.
+
+    Start from the forest menu (or the healer's hut). Repeats: Look for Something to
+    Kill (mode "look"), Go Thrillseeking ("thrill"), or every third fight a thrill
+    ("mix"), then presses Fight until the fight ends. Heals at the healer when HP is
+    below heal_below_pct (stops if it can't afford the potion). The gem fairy is
+    declined (fairy="decline") or accepted ("accept"). It stops when `kills` fights are
+    won, max_requests requests are used (about 1.5 s each), the daily cap is near, HP
+    drops below 25% mid-fight, you die, or any page it doesn't recognise. It never
+    runs from a fight, buys gear, banks, chats, mails or attacks players. It obeys the
+    same rate limit and daily cap as every other tool."""
+    with _lock:
+        c = _get_client()
+        if not c.page or not c.logged_in:
+            return "Not logged in; call lotgd_login first."
+        start = status_of(c.page)
+        used0, won, fairies, heals, thrills, step = _count(), 0, 0, 0, 0, 0
+        stop = "finished"
+        kills = max(1, min(int(kills), 500))
+        mode = mode if mode in ("look", "thrill", "mix") else "look"
+        heal_below_pct = min(max(int(heal_below_pct), 10), 95)
+        while won < kills:
+            page = c.page
+            st = status_of(page)
+            if _count() - used0 >= max_requests:
+                stop = "request budget for this call used up"
+                break
+            if _count() >= MAX_REQUESTS - 5:
+                stop = "daily request cap nearly reached"
+                break
+            if not c.logged_in or c.is_logged_out(page):
+                stop = "logged out"
+                break
+            if re.search(r"you have been slain|you are dead", page.body.plain, re.I):
+                stop = "died"
+                break
+            hp, mx = st.get("hp"), st.get("max_hp")
+            kind, nav = farm_action(page, fairy)
+            if kind == "fairy":
+                fairies += 1
+                _request(c.get, nav.href)
+            elif kind == "fight":
+                if hp is not None and mx and hp * 100 < 25 * mx:
+                    stop = f"HP low mid-fight ({hp}/{mx}); take over"
+                    break
+                after = _request(c.get, nav.href)
+                if re.search(r"you have slain", after.body.plain, re.I):
+                    won += 1
+            elif kind == "forest":
+                if hp is not None and mx and hp * 100 < heal_below_pct * mx:
+                    go = _nav(page, r"^healer\.php(\?c=|$)")
+                    if not go:
+                        stop = "hurt but no healer link on this page"
+                        break
+                    hpage = _request(c.get, go.href)
+                    buy = _nav(hpage, r"healer\.php\?op=buy&pct=100\b")
+                    if not buy:
+                        stop = "no full-heal option"
+                        break
+                    cost = _num(re.sub(r"^.*?-", "", buy.label)) if "gold" in buy.label else None
+                    if cost and st.get("gold") is not None and cost > st["gold"]:
+                        stop = f"full heal costs {cost}, have {st['gold']}"
+                        break
+                    _request(c.get, buy.href)
+                    heals += 1
+                    continue
+                step += 1
+                use_thrill = mode == "thrill" or (mode == "mix" and step % 3 == 0)
+                thrills += use_thrill
+                _request(c.get, (nav[1] if use_thrill else nav[0]).href)
+            else:
+                stop = f"unrecognised page {page.title!r}; take over"
+                break
+        end = status_of(c.page)
+
+        def d(k):
+            return (end.get(k) or 0) - (start.get(k) or 0)
+
+        return (f"farm: {stop}. kills {won}, fairies {fairies} ({fairy}), heals {heals}, thrills {thrills}, "
+                f"requests {_count() - used0} (today {_count()}/{MAX_REQUESTS}).\n"
+                f"gold {start.get('gold')}->{end.get('gold')} ({d('gold'):+}), gems {d('gems'):+}, "
+                f"xp {d('xp'):+} (now {end.get('xp')}), hp {end.get('hp')}/{end.get('max_hp')}, "
+                f"turns {end.get('turns')}, page {end.get('page')!r}.")
+
+
 def main():
     mcp.run()
 

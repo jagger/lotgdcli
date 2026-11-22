@@ -41,3 +41,35 @@ class Status(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeNav:
+    def __init__(self, label, href="x.php"):
+        self.label, self.href = label, href
+
+
+class FarmAction(unittest.TestCase):
+    def page(self, *labels):
+        return type("P", (), {"navs": [FakeNav(l) for l in labels]})()
+
+    def test_fight(self):
+        from lotgd.mcp_server import farm_action
+        kind, nav = farm_action(self.page("Fight", "Run", "Regeneration (1)"))
+        self.assertEqual((kind, nav.label), ("fight", "Fight"))
+
+    def test_fairy_decline_and_accept(self):
+        from lotgd.mcp_server import farm_action
+        p = self.page("Give her a gem", "Don't give her a gem")
+        self.assertEqual(farm_action(p)[1].label, "Don't give her a gem")
+        self.assertEqual(farm_action(p, "accept")[1].label, "Give her a gem")
+
+    def test_forest_menu(self):
+        from lotgd.mcp_server import farm_action
+        kind, (look, thrill) = farm_action(self.page("Return to Kinhaven", "Healer's Hut",
+                                                     "Look for Something to Kill", "Go Thrillseeking",
+                                                     "Take your Stallion to Dark Horse Tavern"))
+        self.assertEqual((kind, look.label, thrill.label), ("forest", "Look for Something to Kill", "Go Thrillseeking"))
+
+    def test_unknown_never_picks_pvp_or_shops(self):
+        from lotgd.mcp_server import farm_action
+        self.assertEqual(farm_action(self.page("Slay Other Players", "MightyE's Weaponry", "Ye Olde Bank"))[0], "unknown")

@@ -6,6 +6,7 @@ versions follow [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **MCP `lotgd_farm(kills, mode, fairy, heal_below_pct, max_requests)`:** runs the forest loop (Look, Thrill or a mix, Fight until the fight ends, heal when hurt, decline or accept the gem fairy) inside the server and returns a short summary instead of every page. Same rate limit and daily cap; stops on anything unrecognised, low HP mid-fight or death; never runs, shops, banks, chats or attacks.
 - **MCP `lotgd_status`:** character status as JSON (level, XP and % to next, HP, gold, bank, gems,
   turns, PvP, favor, buffs with rounds left, requests used today). Reads the current page, so it
   sends no request.
