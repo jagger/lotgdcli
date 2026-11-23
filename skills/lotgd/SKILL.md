@@ -22,7 +22,7 @@ human would: one deliberate action at a time, and only options the page offers.
 - `lotgd_bank(action, amount, keep)`: deposit/withdraw/balance in one call; `amount` omitted = all.
 - `lotgd_heal(target_pct)`: cheapest potion that reaches that HP percentage; no request if already there.
 - `lotgd_farm(kills, mode, fairy, heal_below_pct, max_requests)`: runs the forest loop for you (Look, Thrill, or
-  `mix`; Fight to the end; heal when hurt; decline or accept the gem fairy) and returns one short summary. Start
+  `mix`; Fight to the end; heal when hurt; decline, accept, or `fairy="auto"` = accept while gems > `keep_gems` (default 1)) and returns one short summary. Start
   from the forest menu. Use it for long grinds instead of many `lotgd_choose` calls: about 300 tokens per run.
   It obeys the same rate limit and daily cap, stops on unknown pages, HP under 25% mid-fight, or death, and never
   runs, shops, banks, chats, mails or attacks. A call over 120 s goes to the background and its result arrives

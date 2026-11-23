@@ -546,14 +546,15 @@ def farm_action(page, fairy="decline"):
 
 @mcp.tool()
 def lotgd_farm(kills: int = 20, mode: str = "look", fairy: str = "decline",
-               heal_below_pct: int = 60, max_requests: int = 120) -> str:
+               heal_below_pct: int = 60, max_requests: int = 120, keep_gems: int = 1) -> str:
     """Run the forest-fight loop for you and return only a short summary.
 
     Start from the forest menu (or the healer's hut). Repeats: Look for Something to
     Kill (mode "look"), Go Thrillseeking ("thrill"), or every third fight a thrill
     ("mix"), then presses Fight until the fight ends. Heals at the healer when HP is
     below heal_below_pct (stops if it can't afford the potion). The gem fairy is
-    declined (fairy="decline") or accepted ("accept"). It stops when `kills` fights are
+    declined (fairy="decline"), accepted ("accept"), or accepted only while you hold more
+    than keep_gems gems (fairy="auto", default keep 1). It stops when `kills` fights are
     won, max_requests requests are used (about 1.5 s each), the daily cap is near, HP
     drops below 25% mid-fight, you die, or any page it doesn't recognise. It never
     runs from a fight, buys gear, banks, chats, mails or attacks players. It obeys the
@@ -564,6 +565,7 @@ def lotgd_farm(kills: int = 20, mode: str = "look", fairy: str = "decline",
             return "Not logged in; call lotgd_login first."
         start = status_of(c.page)
         used0, won, fairies, heals, thrills, step = _count(), 0, 0, 0, 0, 0
+        accepted = 0
         stop = "finished"
         kills = max(1, min(int(kills), 500))
         mode = mode if mode in ("look", "thrill", "mix") else "look"
@@ -584,9 +586,13 @@ def lotgd_farm(kills: int = 20, mode: str = "look", fairy: str = "decline",
                 stop = "died"
                 break
             hp, mx = st.get("hp"), st.get("max_hp")
-            kind, nav = farm_action(page, fairy)
+            use = fairy
+            if fairy == "auto":
+                use = "accept" if (st.get("gems") or 0) > keep_gems else "decline"
+            kind, nav = farm_action(page, use)
             if kind == "fairy":
                 fairies += 1
+                accepted += use == "accept"
                 _request(c.get, nav.href)
             elif kind == "fight":
                 if hp is not None and mx and hp * 100 < 25 * mx:
@@ -625,7 +631,7 @@ def lotgd_farm(kills: int = 20, mode: str = "look", fairy: str = "decline",
         def d(k):
             return (end.get(k) or 0) - (start.get(k) or 0)
 
-        return (f"farm: {stop}. kills {won}, fairies {fairies} ({fairy}), heals {heals}, thrills {thrills}, "
+        return (f"farm: {stop}. kills {won}, fairies {fairies} ({fairy}, {accepted} accepted), heals {heals}, thrills {thrills}, "
                 f"requests {_count() - used0} (today {_count()}/{MAX_REQUESTS}).\n"
                 f"gold {start.get('gold')}->{end.get('gold')} ({d('gold'):+}), gems {d('gems'):+}, "
                 f"xp {d('xp'):+} (now {end.get('xp')}), hp {end.get('hp')}/{end.get('max_hp')}, "
