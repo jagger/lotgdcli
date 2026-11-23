@@ -131,7 +131,7 @@ def render(page, note="", check_badnav=True, logout=False):
         out.append(f"(+{inline} in-text links marked [#n] above)")
     for n, form in enumerate(page.forms, 1):
         out.append(f"\n## Form {n}" + (f" (posts to {form.action.split('?')[0]}"
-                                      + (f", {re.search(r'op=(\\w+)', form.action)[0]}" if re.search(r'op=\w+', form.action or '') else "")
+                                      + (f", {_op[0]}" if (_op := re.search(r'op=\w+', form.action or '')) else "")
                                       + ")" if form.action else ""))
         for f in form.fields:
             if f.kind == "hidden":
